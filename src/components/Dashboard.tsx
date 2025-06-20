@@ -20,6 +20,15 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+// Type for the submission data structure
+interface SubmissionData {
+  nursery_name?: string;
+  total_questions?: number;
+  answered_questions?: number;
+  responses?: Record<string, any>;
+  [key: string]: any;
+}
+
 const Dashboard = () => {
   const { toast } = useToast();
 
@@ -35,6 +44,18 @@ const Dashboard = () => {
       return data;
     }
   });
+
+  // Helper function to safely parse submission data
+  const parseSubmissionData = (data: any): SubmissionData => {
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data);
+      } catch {
+        return {};
+      }
+    }
+    return data || {};
+  };
 
   const calculateComplianceData = () => {
     if (!submissions || submissions.length === 0) {
@@ -56,17 +77,29 @@ const Dashboard = () => {
 
     const calculateRoleCompliance = (roleSubmissions: any[]) => {
       if (roleSubmissions.length === 0) return 0;
-      const totalQuestions = roleSubmissions.reduce((sum, sub) => 
-        sum + (sub.submission_data?.total_questions || 0), 0);
-      const answeredQuestions = roleSubmissions.reduce((sum, sub) => 
-        sum + (sub.submission_data?.answered_questions || 0), 0);
+      const totalQuestions = roleSubmissions.reduce((sum, sub) => {
+        const parsedData = parseSubmissionData(sub.submission_data);
+        return sum + (parsedData.total_questions || 0);
+      }, 0);
+      const answeredQuestions = roleSubmissions.reduce((sum, sub) => {
+        const parsedData = parseSubmissionData(sub.submission_data);
+        return sum + (parsedData.answered_questions || 0);
+      }, 0);
       return totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
     };
 
+    const totalQuestions = submissions.reduce((sum, sub) => {
+      const parsedData = parseSubmissionData(sub.submission_data);
+      return sum + (parsedData.total_questions || 0);
+    }, 0);
+    
+    const totalAnswered = submissions.reduce((sum, sub) => {
+      const parsedData = parseSubmissionData(sub.submission_data);
+      return sum + (parsedData.answered_questions || 0);
+    }, 0);
+
     return {
-      overall: Math.round(submissions.reduce((sum, sub) => 
-        sum + (sub.submission_data?.answered_questions || 0), 0) / 
-        submissions.reduce((sum, sub) => sum + (sub.submission_data?.total_questions || 0), 0) * 100) || 0,
+      overall: totalQuestions > 0 ? Math.round((totalAnswered / totalQuestions) * 100) : 0,
       managers: calculateRoleCompliance(roleGroups['Manager'] || []),
       deputies: calculateRoleCompliance(roleGroups['Deputy Manager'] || []),
       roomLeaders: calculateRoleCompliance(roleGroups['Room Leader'] || []),
@@ -76,12 +109,15 @@ const Dashboard = () => {
 
   const getRecentEntries = () => {
     if (!submissions) return [];
-    return submissions.slice(0, 4).map(sub => ({
-      role: sub.role,
-      location: sub.submission_data?.nursery_name || 'Unknown',
-      status: 'complete',
-      time: new Date(sub.submitted_at).toLocaleString()
-    }));
+    return submissions.slice(0, 4).map(sub => {
+      const parsedData = parseSubmissionData(sub.submission_data);
+      return {
+        role: sub.role,
+        location: parsedData.nursery_name || 'Unknown',
+        status: 'complete',
+        time: new Date(sub.submitted_at).toLocaleString()
+      };
+    });
   };
 
   const getAlertsFromSubmissions = () => {
@@ -89,7 +125,8 @@ const Dashboard = () => {
     const alerts = [];
     
     submissions.forEach(sub => {
-      const responses = sub.submission_data?.responses || {};
+      const parsedData = parseSubmissionData(sub.submission_data);
+      const responses = parsedData.responses || {};
       
       // Check for safeguarding concerns
       if (responses.safeguarding_concerns === 'yes') {
