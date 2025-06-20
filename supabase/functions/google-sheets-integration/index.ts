@@ -24,11 +24,15 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const googleScriptUrl = Deno.env.get('GOOGLE_SCRIPT_URL');
+    const googleScriptUrl = Deno.env.get('PAGE_URL'); // Using PAGE_URL as mentioned
+
+    console.log("Google Script URL:", googleScriptUrl);
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     if (req.method === 'GET') {
+      console.log("Fetching submissions from database...");
+      
       // Fetch all submissions from database
       const { data: submissions, error } = await supabase
         .from('form_submissions')
@@ -40,6 +44,8 @@ const handler = async (req: Request): Promise<Response> => {
         throw error;
       }
 
+      console.log(`Found ${submissions?.length || 0} submissions`);
+
       // Format data for Google Sheets
       const formattedData = submissions?.map((submission: any) => {
         const parsedData = typeof submission.submission_data === 'string' 
@@ -48,7 +54,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         return {
           id: submission.id,
-          timestamp: submission.submitted_at,
+          timestamp: new Date(submission.submitted_at).toISOString(),
           full_name: submission.full_name,
           email: submission.email,
           role: submission.role,
@@ -62,27 +68,43 @@ const handler = async (req: Request): Promise<Response> => {
         };
       }) || [];
 
+      console.log("Formatted data sample:", formattedData[0]);
+
       // Send to Google Apps Script if URL is configured
       if (googleScriptUrl && formattedData.length > 0) {
         try {
+          console.log("Sending data to Google Apps Script...");
+          
           const response = await fetch(googleScriptUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
             body: JSON.stringify({
               action: 'createOrUpdateSheet',
               data: formattedData
             })
           });
 
+          console.log("Google Apps Script response status:", response.status);
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Google Apps Script error response:", errorText);
+            throw new Error(`Google Apps Script returned ${response.status}: ${errorText}`);
+          }
+
           const result = await response.json();
-          console.log('Google Sheets response:', result);
+          console.log('Google Apps Script response:', result);
 
           return new Response(
             JSON.stringify({ 
               success: true, 
               message: "Data successfully sent to Google Sheets",
               sheetUrl: result.sheetUrl || null,
-              recordCount: formattedData.length
+              recordCount: formattedData.length,
+              result: result
             }),
             {
               status: 200,
@@ -90,13 +112,18 @@ const handler = async (req: Request): Promise<Response> => {
             }
           );
         } catch (googleError) {
-          console.error('Google Sheets error:', googleError);
-          // Return the data even if Google Sheets fails
+          console.error('Google Sheets integration error:', googleError);
+          
+          // Return the data as CSV fallback if Google Sheets fails
+          const csvContent = createCSVFromData(formattedData);
+          
           return new Response(
             JSON.stringify({ 
               success: false, 
-              message: "Failed to send to Google Sheets, but data retrieved",
+              message: "Failed to send to Google Sheets, CSV data provided as fallback",
               data: formattedData,
+              csvContent: csvContent,
+              recordCount: formattedData.length,
               error: googleError.message
             }),
             {
@@ -105,31 +132,40 @@ const handler = async (req: Request): Promise<Response> => {
             }
           );
         }
+      } else {
+        console.log("Google Script URL not configured or no data to send");
+        
+        // If no Google Script URL, return CSV data
+        const csvContent = createCSVFromData(formattedData);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: "Data retrieved successfully, CSV content provided",
+            data: formattedData,
+            csvContent: csvContent,
+            recordCount: formattedData.length
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
       }
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Data retrieved successfully",
-          data: formattedData,
-          recordCount: formattedData.length
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
     }
 
     // Handle POST requests (single submission)
     const submissionData: FormSubmissionData = await req.json();
     
-    console.log("Processing submission for Google Sheets:", submissionData.id);
+    console.log("Processing single submission for Google Sheets:", submissionData.id);
     
     if (googleScriptUrl) {
       const response = await fetch(googleScriptUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           action: 'addRow',
           data: submissionData
@@ -137,7 +173,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
       const result = await response.json();
-      console.log('Google Sheets response:', result);
+      console.log('Google Sheets single submission response:', result);
     }
 
     return new Response(
@@ -154,7 +190,11 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error) {
     console.error("Error in google-sheets-integration:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        success: false,
+        message: "Failed to process request"
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -162,5 +202,28 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
+
+// Helper function to create CSV content
+function createCSVFromData(data: any[]): string {
+  if (!data || data.length === 0) return '';
+  
+  const headers = ['ID', 'Timestamp', 'Full Name', 'Email', 'Role', 'Nursery', 'Total Questions', 'Answered Questions', 'Compliance Rate'];
+  const csvRows = [
+    headers.join(','),
+    ...data.map(row => [
+      row.id,
+      row.timestamp,
+      `"${row.full_name}"`,
+      row.email,
+      `"${row.role}"`,
+      `"${row.nursery_name}"`,
+      row.total_questions,
+      row.answered_questions,
+      `${row.compliance_rate}%`
+    ].join(','))
+  ];
+  
+  return csvRows.join('\n');
+}
 
 serve(handler);

@@ -15,7 +15,8 @@ import {
   Clock,
   FileText,
   Activity,
-  Download
+  Download,
+  ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -166,37 +167,81 @@ const Dashboard = () => {
   const downloadGoogleSheet = async () => {
     setIsDownloading(true);
     try {
+      console.log("Starting download process...");
+      
       const { data, error } = await supabase.functions.invoke('google-sheets-integration', {
         method: 'GET'
       });
 
-      if (error) throw error;
+      console.log("Edge function response:", data);
+
+      if (error) {
+        console.error("Supabase function error:", error);
+        throw error;
+      }
 
       if (data?.success && data?.sheetUrl) {
         // Open the Google Sheet in a new tab
         window.open(data.sheetUrl, '_blank');
         toast({
           title: "Sheet Ready",
-          description: `Google Sheet created with ${data.recordCount} records`,
+          description: `Google Sheet opened with ${data.recordCount} records`,
         });
-      } else if (data?.success && data?.data) {
-        // If no Google Sheet URL but data exists, create a CSV download
+      } else if (data?.success && data?.csvContent) {
+        // Download CSV if Google Sheets integration failed but CSV content is available
+        downloadCSV(data.csvContent, 'form-submissions.csv');
+        toast({
+          title: "CSV Downloaded",
+          description: `Downloaded ${data.recordCount} records as CSV file`,
+        });
+      } else if (data?.data) {
+        // Fallback: create CSV from returned data
         const csvContent = createCSVFromData(data.data);
         downloadCSV(csvContent, 'form-submissions.csv');
         toast({
           title: "CSV Downloaded",
-          description: `Downloaded ${data.recordCount} records as CSV file`,
+          description: `Downloaded ${data.recordCount || data.data.length} records as CSV file`,
         });
       } else {
         throw new Error(data?.message || 'Failed to process sheet download');
       }
     } catch (error) {
       console.error('Download error:', error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to download sheet. Please try again.",
-        variant: "destructive",
-      });
+      
+      // Final fallback: create CSV from local submissions data
+      if (submissions && submissions.length > 0) {
+        const formattedData = submissions.map(sub => {
+          const parsedData = parseSubmissionData(sub.submission_data);
+          return {
+            id: sub.id,
+            timestamp: sub.submitted_at,
+            full_name: sub.full_name,
+            email: sub.email,
+            role: sub.role,
+            nursery_name: parsedData.nursery_name || '',
+            total_questions: parsedData.total_questions || 0,
+            answered_questions: parsedData.answered_questions || 0,
+            compliance_rate: parsedData.total_questions > 0 
+              ? Math.round((parsedData.answered_questions / parsedData.total_questions) * 100) 
+              : 0
+          };
+        });
+        
+        const csvContent = createCSVFromData(formattedData);
+        downloadCSV(csvContent, 'form-submissions-backup.csv');
+        
+        toast({
+          title: "Backup CSV Downloaded",
+          description: `Downloaded ${submissions.length} records as backup CSV`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Download Failed",
+          description: "Failed to download sheet and no data available for backup.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsDownloading(false);
     }
@@ -234,6 +279,7 @@ const Dashboard = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -290,18 +336,31 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Download Sheet</CardTitle>
+            <CardTitle className="text-sm font-medium">Export Data</CardTitle>
             <Download className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <Button 
               onClick={downloadGoogleSheet}
-              disabled={isDownloading}
+              disabled={isDownloading || !submissions || submissions.length === 0}
               className="w-full text-sm"
               size="sm"
             >
-              {isDownloading ? 'Preparing...' : 'Download Data'}
+              {isDownloading ? (
+                <>
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Download className="h-3 w-3 mr-2" />
+                  Export Data
+                </>
+              )}
             </Button>
+            {(!submissions || submissions.length === 0) && (
+              <p className="text-xs text-muted-foreground mt-1">No data available</p>
+            )}
           </CardContent>
         </Card>
       </div>
