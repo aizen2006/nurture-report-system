@@ -9,27 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      Data: {
-        Row: {
-          "Checkist data": string | null
-          Date: string | null
-          email: string
-          Name: string
-        }
-        Insert: {
-          "Checkist data"?: string | null
-          Date?: string | null
-          email: string
-          Name: string
-        }
-        Update: {
-          "Checkist data"?: string | null
-          Date?: string | null
-          email?: string
-          Name?: string
-        }
-        Relationships: []
-      }
       form_submissions: {
         Row: {
           created_at: string
@@ -65,7 +44,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      pg_get_coldef: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

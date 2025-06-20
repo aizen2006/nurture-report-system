@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +15,7 @@ import {
   Clock,
   FileText,
   Activity,
-  Mail
+  Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,6 +30,7 @@ interface SubmissionData {
 
 const Dashboard = () => {
   const { toast } = useToast();
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { data: submissions, isLoading } = useQuery({
     queryKey: ['form_submissions'],
@@ -163,20 +163,77 @@ const Dashboard = () => {
     return alerts.slice(0, 5); // Show only latest 5 alerts
   };
 
-  const sendSheetToAdmin = async () => {
+  const downloadGoogleSheet = async () => {
+    setIsDownloading(true);
     try {
-      // In a real implementation, this would trigger an email with the Google Sheet link
-      toast({
-        title: "Sheet Sent to Admin",
-        description: "The Google Sheet has been sent to abhik@arkgroup.co.uk",
+      const { data, error } = await supabase.functions.invoke('google-sheets-integration', {
+        method: 'GET'
       });
+
+      if (error) throw error;
+
+      if (data?.success && data?.sheetUrl) {
+        // Open the Google Sheet in a new tab
+        window.open(data.sheetUrl, '_blank');
+        toast({
+          title: "Sheet Ready",
+          description: `Google Sheet created with ${data.recordCount} records`,
+        });
+      } else if (data?.success && data?.data) {
+        // If no Google Sheet URL but data exists, create a CSV download
+        const csvContent = createCSVFromData(data.data);
+        downloadCSV(csvContent, 'form-submissions.csv');
+        toast({
+          title: "CSV Downloaded",
+          description: `Downloaded ${data.recordCount} records as CSV file`,
+        });
+      } else {
+        throw new Error(data?.message || 'Failed to process sheet download');
+      }
     } catch (error) {
+      console.error('Download error:', error);
       toast({
-        title: "Error",
-        description: "Failed to send sheet to admin",
+        title: "Download Failed",
+        description: "Failed to download sheet. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsDownloading(false);
     }
+  };
+
+  const createCSVFromData = (data: any[]) => {
+    if (!data || data.length === 0) return '';
+    
+    const headers = ['ID', 'Timestamp', 'Full Name', 'Email', 'Role', 'Nursery', 'Total Questions', 'Answered Questions', 'Compliance Rate'];
+    const csvRows = [
+      headers.join(','),
+      ...data.map(row => [
+        row.id,
+        row.timestamp,
+        `"${row.full_name}"`,
+        row.email,
+        `"${row.role}"`,
+        `"${row.nursery_name}"`,
+        row.total_questions,
+        row.answered_questions,
+        `${row.compliance_rate}%`
+      ].join(','))
+    ];
+    
+    return csvRows.join('\n');
+  };
+
+  const downloadCSV = (csvContent: string, filename: string) => {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (isLoading) {
@@ -233,16 +290,17 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Send to Admin</CardTitle>
-            <Mail className="h-4 w-4 text-purple-600" />
+            <CardTitle className="text-sm font-medium">Download Sheet</CardTitle>
+            <Download className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <Button 
-              onClick={sendSheetToAdmin}
+              onClick={downloadGoogleSheet}
+              disabled={isDownloading}
               className="w-full text-sm"
               size="sm"
             >
-              Email Sheet
+              {isDownloading ? 'Preparing...' : 'Download Data'}
             </Button>
           </CardContent>
         </Card>
