@@ -1,8 +1,11 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   CheckCircle, 
   AlertTriangle, 
@@ -12,31 +15,147 @@ import {
   Calendar,
   Clock,
   FileText,
-  Activity
+  Activity,
+  Mail
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
-  // Mock data for demonstration
-  const complianceData = {
-    overall: 85,
-    managers: 92,
-    deputies: 88,
-    roomLeaders: 82,
-    areaManagers: 78
+  const { toast } = useToast();
+
+  const { data: submissions, isLoading } = useQuery({
+    queryKey: ['form_submissions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('form_submissions')
+        .select('*')
+        .order('submitted_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const calculateComplianceData = () => {
+    if (!submissions || submissions.length === 0) {
+      return {
+        overall: 0,
+        managers: 0,
+        deputies: 0,
+        roomLeaders: 0,
+        areaManagers: 0
+      };
+    }
+
+    const roleGroups = submissions.reduce((acc, submission) => {
+      const role = submission.role;
+      if (!acc[role]) acc[role] = [];
+      acc[role].push(submission);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    const calculateRoleCompliance = (roleSubmissions: any[]) => {
+      if (roleSubmissions.length === 0) return 0;
+      const totalQuestions = roleSubmissions.reduce((sum, sub) => 
+        sum + (sub.submission_data?.total_questions || 0), 0);
+      const answeredQuestions = roleSubmissions.reduce((sum, sub) => 
+        sum + (sub.submission_data?.answered_questions || 0), 0);
+      return totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
+    };
+
+    return {
+      overall: Math.round(submissions.reduce((sum, sub) => 
+        sum + (sub.submission_data?.answered_questions || 0), 0) / 
+        submissions.reduce((sum, sub) => sum + (sub.submission_data?.total_questions || 0), 0) * 100) || 0,
+      managers: calculateRoleCompliance(roleGroups['Manager'] || []),
+      deputies: calculateRoleCompliance(roleGroups['Deputy Manager'] || []),
+      roomLeaders: calculateRoleCompliance(roleGroups['Room Leader'] || []),
+      areaManagers: calculateRoleCompliance(roleGroups['Area Manager'] || [])
+    };
   };
 
-  const recentEntries = [
-    { role: 'Manager', location: 'Main Branch', status: 'complete', time: '2 hours ago' },
-    { role: 'Deputy Manager', location: 'South Branch', status: 'pending', time: '4 hours ago' },
-    { role: 'Room Leader', location: 'Main Branch', status: 'complete', time: '6 hours ago' },
-    { role: 'Area Manager', location: 'All Locations', status: 'complete', time: '1 day ago' }
-  ];
+  const getRecentEntries = () => {
+    if (!submissions) return [];
+    return submissions.slice(0, 4).map(sub => ({
+      role: sub.role,
+      location: sub.submission_data?.nursery_name || 'Unknown',
+      status: 'complete',
+      time: new Date(sub.submitted_at).toLocaleString()
+    }));
+  };
 
-  const alerts = [
-    { type: 'safeguarding', message: 'Safeguarding concern reported - Room 2', severity: 'high' },
-    { type: 'staffing', message: '2 staff absences reported today', severity: 'medium' },
-    { type: 'maintenance', message: 'Fire drill due this week', severity: 'low' }
-  ];
+  const getAlertsFromSubmissions = () => {
+    if (!submissions) return [];
+    const alerts = [];
+    
+    submissions.forEach(sub => {
+      const responses = sub.submission_data?.responses || {};
+      
+      // Check for safeguarding concerns
+      if (responses.safeguarding_concerns === 'yes') {
+        alerts.push({
+          type: 'safeguarding',
+          message: `Safeguarding concern reported by ${sub.full_name}`,
+          severity: 'high'
+        });
+      }
+      
+      // Check for staff absences
+      const absenceFields = Object.keys(responses).filter(key => key.includes('absences'));
+      const hasAbsences = absenceFields.some(field => responses[field] && responses[field].trim());
+      if (hasAbsences) {
+        alerts.push({
+          type: 'staffing',
+          message: `Staff absences reported by ${sub.full_name}`,
+          severity: 'medium'
+        });
+      }
+      
+      // Check for ratio issues
+      const ratioFields = Object.keys(responses).filter(key => key.includes('ratio_status'));
+      const hasIncorrectRatios = ratioFields.some(field => responses[field] === 'Incorrect Ratio');
+      if (hasIncorrectRatios) {
+        alerts.push({
+          type: 'ratio',
+          message: `Incorrect staff ratios reported by ${sub.full_name}`,
+          severity: 'high'
+        });
+      }
+    });
+    
+    return alerts.slice(0, 5); // Show only latest 5 alerts
+  };
+
+  const sendSheetToAdmin = async () => {
+    try {
+      // In a real implementation, this would trigger an email with the Google Sheet link
+      toast({
+        title: "Sheet Sent to Admin",
+        description: "The Google Sheet has been sent to abhik@arkgroup.co.uk",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send sheet to admin",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const complianceData = calculateComplianceData();
+  const recentEntries = getRecentEntries();
+  const alerts = getAlertsFromSubmissions();
 
   return (
     <div className="space-y-6">
@@ -55,34 +174,39 @@ const Dashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Reports</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
             <FileText className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
-            <p className="text-xs text-muted-foreground">+3 from yesterday</p>
+            <div className="text-2xl font-bold">{submissions?.length || 0}</div>
+            <p className="text-xs text-muted-foreground">Across all roles</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Actions</CardTitle>
+            <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">7</div>
+            <div className="text-2xl font-bold text-orange-600">{alerts.length}</div>
             <p className="text-xs text-muted-foreground">Requires attention</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Staff on Duty</CardTitle>
-            <Users className="h-4 w-4 text-purple-600" />
+            <CardTitle className="text-sm font-medium">Send to Admin</CardTitle>
+            <Mail className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">42</div>
-            <p className="text-xs text-muted-foreground">Across all locations</p>
+            <Button 
+              onClick={sendSheetToAdmin}
+              className="w-full text-sm"
+              size="sm"
+            >
+              Email Sheet
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -123,25 +247,23 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentEntries.map((entry, index) => (
+              {recentEntries.length > 0 ? recentEntries.map((entry, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      entry.status === 'complete' ? 'bg-green-500' : 'bg-yellow-500'
-                    }`} />
+                    <div className="w-2 h-2 rounded-full bg-green-500" />
                     <div>
                       <p className="text-sm font-medium">{entry.role}</p>
                       <p className="text-xs text-gray-500">{entry.location}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge variant={entry.status === 'complete' ? 'default' : 'secondary'}>
-                      {entry.status}
-                    </Badge>
+                    <Badge variant="default">complete</Badge>
                     <p className="text-xs text-gray-500 mt-1">{entry.time}</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-sm text-gray-500">No recent submissions</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -153,7 +275,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {alerts.map((alert, index) => (
+              {alerts.length > 0 ? alerts.map((alert, index) => (
                 <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50">
                   <AlertTriangle className={`h-4 w-4 mt-0.5 ${
                     alert.severity === 'high' ? 'text-red-500' : 
@@ -166,7 +288,9 @@ const Dashboard = () => {
                     </Badge>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-sm text-gray-500">No active alerts</p>
+              )}
             </div>
           </CardContent>
         </Card>

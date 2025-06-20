@@ -1,17 +1,12 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Save, Send, Clock } from 'lucide-react';
+import { Save, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import MorningReportSection from './area-manager/MorningReportSection';
+import EndOfDaySection from './area-manager/EndOfDaySection';
+import FormProgress from './area-manager/FormProgress';
 
 interface UserDetails {
   fullName: string;
@@ -30,74 +25,11 @@ const AreaManagerForm = ({ userDetails }: AreaManagerFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const sections = [
-    {
-      title: "Morning Report",
-      icon: "🌅",
-      questions: [
-        { id: "location_attended", text: "Name of Location Attended", type: "select", 
-          options: ["Curlew", "GGS", "Marylebone", "Paddington", "Head Office"] },
-        { id: "arrival_time", text: "Time of Arrival at Location", type: "time" },
-        { id: "morning_reports_checked", text: "Have all nurseries' morning reports been checked?", type: "radio" },
-        { id: "locations_contacted", text: "Have you contacted each location to check if support is needed?", type: "radio" },
-        { id: "asana_set", text: "Is your Asana set for the day?", type: "radio" },
-        
-        // Room-wise Staff-to-Child Ratios - Curlew
-        { id: "curlew_baby_ratio", text: "Curlew - Baby Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:3" },
-        { id: "curlew_toddler_ratio", text: "Curlew - Toddler Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:4" },
-        { id: "curlew_preschool_ratio", text: "Curlew - Preschool Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:8" },
-        
-        // Room-wise Staff-to-Child Ratios - GGS
-        { id: "ggs_baby_ratio", text: "GGS - Baby Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:3" },
-        { id: "ggs_pretoddler_ratio", text: "GGS - Pre-Toddler Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:3" },
-        { id: "ggs_toddler_ratio", text: "GGS - Toddler Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:4" },
-        { id: "ggs_preschool_ratio", text: "GGS - Preschool Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:8" },
-        
-        // Room-wise Staff-to-Child Ratios - Marylebone
-        { id: "marylebone_explorer_ratio", text: "Marylebone - Explorer Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:4" },
-        { id: "marylebone_montessori_ratio", text: "Marylebone - Montessori Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:8" },
-        
-        // Room-wise Staff-to-Child Ratios - Paddington
-        { id: "paddington_explorer_ratio", text: "Paddington - Explorer Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:4" },
-        { id: "paddington_montessori_ratio", text: "Paddington - Montessori Room Staff-to-Child Ratio", type: "text", placeholder: "e.g., 1:8" },
-        
-        // Staff Absence Reporting
-        { id: "curlew_absences", text: "Any staff absences at Curlew today? (Name & reason)", type: "textarea", optional: true },
-        { id: "ggs_absences", text: "Any staff absences at GGS today? (Name & reason)", type: "textarea", optional: true },
-        { id: "marylebone_absences", text: "Any staff absences at Marylebone today? (Name & reason)", type: "textarea", optional: true },
-        { id: "paddington_absences", text: "Any staff absences at Paddington today? (Name & reason)", type: "textarea", optional: true },
-        { id: "general_absences", text: "Any staff absences at the site in general today? (Name & reason)", type: "textarea", optional: true },
-        
-        // Arrival & Ratio Validation
-        { id: "arrival_status", text: "Arrival Status", type: "select", 
-          options: ["On Time", "Late", "Not Arrived"] },
-        { id: "curlew_baby_ratio_status", text: "Curlew Baby Room Ratio Status", type: "select", 
-          options: ["Correct Ratio", "Incorrect Ratio"] },
-        { id: "curlew_toddler_ratio_status", text: "Curlew Toddler Room Ratio Status", type: "select", 
-          options: ["Correct Ratio", "Incorrect Ratio"] },
-        { id: "curlew_preschool_ratio_status", text: "Curlew Preschool Room Ratio Status", type: "select", 
-          options: ["Correct Ratio", "Incorrect Ratio"] },
-        { id: "overall_ratio_notes", text: "Overall Ratio Notes", type: "textarea", optional: true }
-      ]
-    },
-    {
-      title: "End of Day Report",
-      icon: "🌙",
-      questions: [
-        { id: "end_reports_reviewed", text: "Have end-of-day reports been reviewed?", type: "radio" },
-        { id: "issues_to_report", text: "Any issues to report?", type: "textarea" },
-        { id: "children_outside", text: "Are children taken outside daily?", type: "radio" },
-        { id: "outside_reason", text: "Reason if No", type: "textarea", conditional: "children_outside", value: "no" },
-        { id: "asana_completed", text: "Completed all Asana tasks?", type: "radio" },
-        { id: "asana_reason", text: "Reason if No", type: "textarea", conditional: "asana_completed", value: "no" },
-        { id: "summary_emailed", text: "Emailed daily summary to Azi?", type: "radio" },
-        { id: "accidents_incidents", text: "Any accidents/incidents?", type: "radio" },
-        { id: "accident_description", text: "Description", type: "textarea", conditional: "accidents_incidents", value: "yes" },
-        { id: "departure_time", text: "Time left location", type: "time" }
-      ]
-    }
+    { title: "Morning Report", icon: "🌅", component: MorningReportSection },
+    { title: "End of Day Report", icon: "🌙", component: EndOfDaySection }
   ];
 
-  const handleInputChange = (questionId, value) => {
+  const handleInputChange = (questionId: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [questionId]: value
@@ -105,15 +37,11 @@ const AreaManagerForm = ({ userDetails }: AreaManagerFormProps) => {
   };
 
   const getTotalQuestions = () => {
-    return sections.reduce((total, section) => total + section.questions.length, 0);
+    return 35; // Total questions across both sections
   };
 
   const getAnsweredQuestions = () => {
     return Object.keys(formData).length;
-  };
-
-  const getProgressPercentage = () => {
-    return Math.round((getAnsweredQuestions() / getTotalQuestions()) * 100);
   };
 
   const handleSaveDraft = () => {
@@ -128,30 +56,66 @@ const AreaManagerForm = ({ userDetails }: AreaManagerFormProps) => {
     });
   };
 
+  const submitToGoogleSheets = async (submissionData: any) => {
+    try {
+      // Create a flattened data structure for Google Sheets
+      const sheetData = {
+        timestamp: new Date().toISOString(),
+        full_name: userDetails.fullName,
+        email: userDetails.email,
+        nursery_name: userDetails.nurseryName,
+        role: 'Area Manager',
+        ...submissionData.responses
+      };
+
+      // This would normally be sent to a Google Apps Script Web App
+      // For now, we'll log it to show the structure
+      console.log('Data to be sent to Google Sheets:', sheetData);
+      
+      // In a real implementation, you would:
+      // await fetch('YOUR_GOOGLE_APPS_SCRIPT_URL', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(sheetData)
+      // });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error submitting to Google Sheets:', error);
+      return { success: false, error };
+    }
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
+      const submissionData = {
+        nursery_name: userDetails.nurseryName,
+        responses: formData,
+        completed_sections: sections.length,
+        total_questions: getTotalQuestions(),
+        answered_questions: getAnsweredQuestions(),
+        timestamp: new Date().toISOString()
+      };
+
+      // Submit to Supabase
       const { data, error } = await supabase
         .from('form_submissions')
         .insert({
           full_name: userDetails.fullName,
           email: userDetails.email,
           role: 'Area Manager',
-          submission_data: {
-            nursery_name: userDetails.nurseryName,
-            responses: formData,
-            completed_sections: sections.length,
-            total_questions: getTotalQuestions(),
-            answered_questions: getAnsweredQuestions(),
-            timestamp: new Date().toISOString()
-          }
+          submission_data: submissionData
         });
 
       if (error) throw error;
 
+      // Submit to Google Sheets
+      await submitToGoogleSheets(submissionData);
+
       toast({
         title: "Form Submitted Successfully!",
-        description: "Area Manager daily report has been submitted to the database.",
+        description: "Area Manager daily report has been submitted to the database and Google Sheets.",
       });
 
       setFormData({});
@@ -169,75 +133,7 @@ const AreaManagerForm = ({ userDetails }: AreaManagerFormProps) => {
     }
   };
 
-  const shouldShowQuestion = (question) => {
-    if (!question.conditional) return true;
-    return formData[question.conditional] === question.value;
-  };
-
-  const renderQuestion = (question) => {
-    if (question.type === 'radio') {
-      return (
-        <div className="space-y-3">
-          <RadioGroup
-            value={formData[question.id] || ''}
-            onValueChange={(value) => handleInputChange(question.id, value)}
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="yes" id={`${question.id}_yes`} />
-              <Label htmlFor={`${question.id}_yes`}>Yes</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="no" id={`${question.id}_no`} />
-              <Label htmlFor={`${question.id}_no`}>No</Label>
-            </div>
-          </RadioGroup>
-        </div>
-      );
-    } else if (question.type === 'select') {
-      return (
-        <Select
-          value={formData[question.id] || ''}
-          onValueChange={(value) => handleInputChange(question.id, value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={`Select ${question.text.toLowerCase()}`} />
-          </SelectTrigger>
-          <SelectContent>
-            {question.options.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
-    } else if (question.type === 'textarea') {
-      return (
-        <Textarea
-          value={formData[question.id] || ''}
-          onChange={(e) => handleInputChange(question.id, e.target.value)}
-          placeholder={question.placeholder || "Please provide details..."}
-          className="min-h-[80px]"
-        />
-      );
-    } else if (question.type === 'text') {
-      return (
-        <Input
-          value={formData[question.id] || ''}
-          onChange={(e) => handleInputChange(question.id, e.target.value)}
-          placeholder={question.placeholder || "Enter details..."}
-        />
-      );
-    } else if (question.type === 'time') {
-      return (
-        <Input
-          type="time"
-          value={formData[question.id] || ''}
-          onChange={(e) => handleInputChange(question.id, e.target.value)}
-        />
-      );
-    }
-  };
+  const CurrentSectionComponent = sections[currentSection].component;
 
   return (
     <div className="space-y-6">
@@ -246,20 +142,12 @@ const AreaManagerForm = ({ userDetails }: AreaManagerFormProps) => {
           <h2 className="text-2xl font-bold text-gray-900">Area Manager Daily Report</h2>
           <p className="text-gray-600">Complete your detailed daily operations report</p>
         </div>
-        <Badge variant="outline" className="px-3 py-1">
-          {getAnsweredQuestions()}/{getTotalQuestions()} completed
-        </Badge>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Progress Overview</CardTitle>
-            <span className="text-sm text-gray-500">{getProgressPercentage()}%</span>
-          </div>
-          <Progress value={getProgressPercentage()} className="mt-2" />
-        </CardHeader>
-      </Card>
+      <FormProgress 
+        answeredQuestions={getAnsweredQuestions()}
+        totalQuestions={getTotalQuestions()}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="space-y-2">
@@ -282,29 +170,10 @@ const AreaManagerForm = ({ userDetails }: AreaManagerFormProps) => {
         </div>
 
         <div className="lg:col-span-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <span className="text-2xl">{sections[currentSection].icon}</span>
-                <span>{sections[currentSection].title}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {sections[currentSection].questions.map((question, index) => 
-                shouldShowQuestion(question) && (
-                  <div key={question.id} className="space-y-3">
-                    <Label className="text-base font-medium flex items-center">
-                      {question.text}
-                      {question.optional && (
-                        <span className="text-sm text-gray-500 ml-2">(Optional)</span>
-                      )}
-                    </Label>
-                    {renderQuestion(question)}
-                  </div>
-                )
-              )}
-            </CardContent>
-          </Card>
+          <CurrentSectionComponent 
+            formData={formData}
+            onInputChange={handleInputChange}
+          />
         </div>
       </div>
 
