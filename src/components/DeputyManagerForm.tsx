@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,11 +8,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Save, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-const DeputyManagerForm = () => {
+interface UserDetails {
+  fullName: string;
+  nurseryName: string;
+  email: string;
+}
+
+interface DeputyManagerFormProps {
+  userDetails: UserDetails;
+}
+
+const DeputyManagerForm = ({ userDetails }: DeputyManagerFormProps) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({});
   const [currentSection, setCurrentSection] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const sections = [
     {
@@ -80,19 +91,55 @@ const DeputyManagerForm = () => {
   };
 
   const handleSaveDraft = () => {
-    localStorage.setItem('deputy_manager_form_draft', JSON.stringify(formData));
+    localStorage.setItem('deputy_manager_form_draft', JSON.stringify({
+      formData,
+      userDetails,
+      timestamp: new Date().toISOString()
+    }));
     toast({
       title: "Draft Saved",
       description: "Your progress has been saved locally.",
     });
   };
 
-  const handleSubmit = () => {
-    console.log('Deputy Manager Form Data:', formData);
-    toast({
-      title: "Form Submitted",
-      description: "Deputy Manager report has been submitted successfully.",
-    });
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from('form_submissions')
+        .insert({
+          full_name: userDetails.fullName,
+          email: userDetails.email,
+          role: 'Deputy Manager',
+          submission_data: {
+            nursery_name: userDetails.nurseryName,
+            responses: formData,
+            completed_sections: sections.length,
+            total_questions: getTotalQuestions(),
+            answered_questions: getAnsweredQuestions()
+          }
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Form Submitted Successfully!",
+        description: "Deputy Manager report has been submitted to the database.",
+      });
+
+      setFormData({});
+      localStorage.removeItem('deputy_manager_form_draft');
+
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast({
+        title: "Submission Failed",
+        description: "There was an error submitting your form. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderQuestion = (question) => {
@@ -128,8 +175,8 @@ const DeputyManagerForm = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Deputy Manager Weekly Report</h2>
-          <p className="text-gray-600">Complete your weekly operations and development checklist</p>
+          <h2 className="text-2xl font-bold text-gray-900">Deputy Manager Daily Report</h2>
+          <p className="text-gray-600">Complete your daily operations and development checklist</p>
         </div>
         <Badge variant="outline" className="px-3 py-1">
           {getAnsweredQuestions()}/{getTotalQuestions()} completed
@@ -191,9 +238,13 @@ const DeputyManagerForm = () => {
           <Save className="w-4 h-4 mr-2" />
           Save Draft
         </Button>
-        <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700">
+        <Button 
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="bg-green-600 hover:bg-green-700"
+        >
           <Send className="w-4 h-4 mr-2" />
-          Submit Report
+          {isSubmitting ? 'Submitting...' : 'Submit Report'}
         </Button>
       </div>
     </div>

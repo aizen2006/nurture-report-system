@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,11 +9,23 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Save, Send, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-const AreaManagerForm = () => {
+interface UserDetails {
+  fullName: string;
+  nurseryName: string;
+  email: string;
+}
+
+interface AreaManagerFormProps {
+  userDetails: UserDetails;
+}
+
+const AreaManagerForm = ({ userDetails }: AreaManagerFormProps) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({});
   const [currentSection, setCurrentSection] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const sections = [
     {
@@ -67,19 +78,55 @@ const AreaManagerForm = () => {
   };
 
   const handleSaveDraft = () => {
-    localStorage.setItem('area_manager_form_draft', JSON.stringify(formData));
+    localStorage.setItem('area_manager_form_draft', JSON.stringify({
+      formData,
+      userDetails,
+      timestamp: new Date().toISOString()
+    }));
     toast({
       title: "Draft Saved",
       description: "Your progress has been saved locally.",
     });
   };
 
-  const handleSubmit = () => {
-    console.log('Area Manager Form Data:', formData);
-    toast({
-      title: "Form Submitted",
-      description: "Area Manager daily report has been submitted successfully.",
-    });
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from('form_submissions')
+        .insert({
+          full_name: userDetails.fullName,
+          email: userDetails.email,
+          role: 'Area Manager',
+          submission_data: {
+            nursery_name: userDetails.nurseryName,
+            responses: formData,
+            completed_sections: sections.length,
+            total_questions: getTotalQuestions(),
+            answered_questions: getAnsweredQuestions()
+          }
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Form Submitted Successfully!",
+        description: "Area Manager daily report has been submitted to the database.",
+      });
+
+      setFormData({});
+      localStorage.removeItem('area_manager_form_draft');
+
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast({
+        title: "Submission Failed",
+        description: "There was an error submitting your form. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const shouldShowQuestion = (question) => {
@@ -201,9 +248,13 @@ const AreaManagerForm = () => {
           <Save className="w-4 h-4 mr-2" />
           Save Draft
         </Button>
-        <Button onClick={handleSubmit} className="bg-orange-600 hover:bg-orange-700">
+        <Button 
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="bg-orange-600 hover:bg-orange-700"
+        >
           <Send className="w-4 h-4 mr-2" />
-          Submit Report
+          {isSubmitting ? 'Submitting...' : 'Submit Report'}
         </Button>
       </div>
     </div>

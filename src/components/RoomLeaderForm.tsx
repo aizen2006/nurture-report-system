@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,11 +8,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Save, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-const RoomLeaderForm = () => {
+interface UserDetails {
+  fullName: string;
+  nurseryName: string;
+  email: string;
+}
+
+interface RoomLeaderFormProps {
+  userDetails: UserDetails;
+}
+
+const RoomLeaderForm = ({ userDetails }: RoomLeaderFormProps) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({});
   const [currentSection, setCurrentSection] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const sections = [
     {
@@ -72,19 +83,55 @@ const RoomLeaderForm = () => {
   };
 
   const handleSaveDraft = () => {
-    localStorage.setItem('room_leader_form_draft', JSON.stringify(formData));
+    localStorage.setItem('room_leader_form_draft', JSON.stringify({
+      formData,
+      userDetails,
+      timestamp: new Date().toISOString()
+    }));
     toast({
       title: "Draft Saved",
       description: "Your progress has been saved locally.",
     });
   };
 
-  const handleSubmit = () => {
-    console.log('Room Leader Form Data:', formData);
-    toast({
-      title: "Form Submitted",
-      description: "Room Leader report has been submitted successfully.",
-    });
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from('form_submissions')
+        .insert({
+          full_name: userDetails.fullName,
+          email: userDetails.email,
+          role: 'Room Leader',
+          submission_data: {
+            nursery_name: userDetails.nurseryName,
+            responses: formData,
+            completed_sections: sections.length,
+            total_questions: getTotalQuestions(),
+            answered_questions: getAnsweredQuestions()
+          }
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Form Submitted Successfully!",
+        description: "Room Leader report has been submitted to the database.",
+      });
+
+      setFormData({});
+      localStorage.removeItem('room_leader_form_draft');
+
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast({
+        title: "Submission Failed",
+        description: "There was an error submitting your form. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderQuestion = (question) => {
@@ -120,8 +167,8 @@ const RoomLeaderForm = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Room Leader Weekly Report</h2>
-          <p className="text-gray-600">Complete your weekly room management checklist</p>
+          <h2 className="text-2xl font-bold text-gray-900">Room Leader Daily Report</h2>
+          <p className="text-gray-600">Complete your daily room management checklist</p>
         </div>
         <Badge variant="outline" className="px-3 py-1">
           {getAnsweredQuestions()}/{getTotalQuestions()} completed
@@ -183,9 +230,13 @@ const RoomLeaderForm = () => {
           <Save className="w-4 h-4 mr-2" />
           Save Draft
         </Button>
-        <Button onClick={handleSubmit} className="bg-purple-600 hover:bg-purple-700">
+        <Button 
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="bg-purple-600 hover:bg-purple-700"
+        >
           <Send className="w-4 h-4 mr-2" />
-          Submit Report
+          {isSubmitting ? 'Submitting...' : 'Submit Report'}
         </Button>
       </div>
     </div>
