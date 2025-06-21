@@ -46,6 +46,23 @@ const RoomPlanner = () => {
     staffRequired: [7, 7, 8, 7, 6]
   };
 
+  // Handler functions to convert CheckedState to boolean
+  const handleAllergiesChange = (checked: boolean | "indeterminate") => {
+    setShowAllergies(checked === true);
+  };
+
+  const handleSpecialDietaryChange = (checked: boolean | "indeterminate") => {
+    setShowSpecialDietary(checked === true);
+  };
+
+  const handleChildSignatureChange = (checked: boolean | "indeterminate") => {
+    setShowChildSignature(checked === true);
+  };
+
+  const handleStaffSignatureChange = (checked: boolean | "indeterminate") => {
+    setShowStaffSignature(checked === true);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -63,7 +80,7 @@ const RoomPlanner = () => {
             <Checkbox 
               id="allergies" 
               checked={showAllergies}
-              onCheckedChange={setShowAllergies}
+              onCheckedChange={handleAllergiesChange}
             />
             <label htmlFor="allergies" className="text-sm font-medium">
               Show Allergies
@@ -73,7 +90,7 @@ const RoomPlanner = () => {
             <Checkbox 
               id="dietary" 
               checked={showSpecialDietary}
-              onCheckedChange={setShowSpecialDietary}
+              onCheckedChange={handleSpecialDietaryChange}
             />
             <label htmlFor="dietary" className="text-sm font-medium">
               Show Special Dietary Considerations
@@ -83,7 +100,7 @@ const RoomPlanner = () => {
             <Checkbox 
               id="child-signature" 
               checked={showChildSignature}
-              onCheckedChange={setShowChildSignature}
+              onCheckedChange={handleChildSignatureChange}
             />
             <label htmlFor="child-signature" className="text-sm font-medium">
               Child Signature Fields
@@ -93,7 +110,7 @@ const RoomPlanner = () => {
             <Checkbox 
               id="staff-signature" 
               checked={showStaffSignature}
-              onCheckedChange={setShowStaffSignature}
+              onCheckedChange={handleStaffSignatureChange}
             />
             <label htmlFor="staff-signature" className="text-sm font-medium">
               Staff Signature Fields
