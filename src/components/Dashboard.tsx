@@ -12,6 +12,7 @@ import RecentActivity from './dashboard/RecentActivity';
 import RoomPlanner from './dashboard/RoomPlanner';
 import { calculateComplianceData, getRecentEntries } from './dashboard/utils/dataProcessing';
 import { useGoogleSheetsDownload } from './dashboard/hooks/useGoogleSheetsDownload';
+import { useIndividualDownloads } from './dashboard/hooks/useIndividualDownloads';
 
 const Dashboard = () => {
   const { data: submissions, isLoading } = useQuery({
@@ -27,7 +28,13 @@ const Dashboard = () => {
     }
   });
 
-  const { downloadGoogleSheet, isDownloading } = useGoogleSheetsDownload(submissions || []);
+  const { downloadGoogleSheet, isDownloading: isDownloadingAll } = useGoogleSheetsDownload(submissions || []);
+  const { 
+    downloadFormSubmissions, 
+    downloadStaffRatios, 
+    downloadEnrollmentAttendance, 
+    isDownloading: isDownloadingIndividual 
+  } = useIndividualDownloads();
 
   if (isLoading) {
     return (
@@ -42,6 +49,7 @@ const Dashboard = () => {
 
   const complianceData = calculateComplianceData(submissions || []);
   const recentEntries = getRecentEntries(submissions || []);
+  const isDownloading = isDownloadingAll || isDownloadingIndividual;
 
   return (
     <div className="space-y-6">
@@ -61,8 +69,10 @@ const Dashboard = () => {
       <KeyMetrics
         overallCompliance={complianceData.overall}
         totalSubmissions={submissions?.length || 0}
-        activeAlerts={0}
-        onDownload={downloadGoogleSheet}
+        onDownloadFormSubmissions={downloadFormSubmissions}
+        onDownloadStaffRatios={downloadStaffRatios}
+        onDownloadEnrollmentAttendance={downloadEnrollmentAttendance}
+        onDownloadAll={downloadGoogleSheet}
         isDownloading={isDownloading}
         hasData={submissions && submissions.length > 0}
       />

@@ -3,18 +3,27 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   TrendingUp, 
   FileText, 
   Download,
-  Database
+  Database,
+  ChevronDown
 } from 'lucide-react';
 
 interface KeyMetricsProps {
   overallCompliance: number;
   totalSubmissions: number;
-  activeAlerts: number;
-  onDownload: () => void;
+  onDownloadFormSubmissions: () => void;
+  onDownloadStaffRatios: () => void;
+  onDownloadEnrollmentAttendance: () => void;
+  onDownloadAll: () => void;
   isDownloading: boolean;
   hasData: boolean;
 }
@@ -22,7 +31,10 @@ interface KeyMetricsProps {
 const KeyMetrics = ({ 
   overallCompliance, 
   totalSubmissions, 
-  onDownload, 
+  onDownloadFormSubmissions,
+  onDownloadStaffRatios,
+  onDownloadEnrollmentAttendance,
+  onDownloadAll,
   isDownloading, 
   hasData 
 }: KeyMetricsProps) => {
@@ -52,33 +64,71 @@ const KeyMetrics = ({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Export All Data</CardTitle>
+          <CardTitle className="text-sm font-medium">Export Data</CardTitle>
           <Download className="h-4 w-4 text-purple-600" />
         </CardHeader>
         <CardContent>
-          <Button 
-            onClick={onDownload}
-            disabled={isDownloading || !hasData}
-            className="w-full text-sm"
-            size="sm"
-          >
-            {isDownloading ? (
-              <>
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
-                Processing...
-              </>
-            ) : (
-              <>
-                <Database className="h-3 w-3 mr-2" />
-                Export All Sheets
-              </>
-            )}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                disabled={isDownloading || !hasData}
+                className="w-full text-sm"
+                size="sm"
+              >
+                {isDownloading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-3 w-3 mr-2" />
+                    Export Data
+                    <ChevronDown className="h-3 w-3 ml-2" />
+                  </>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56 bg-white border border-gray-200 shadow-lg z-50">
+              <DropdownMenuItem 
+                onClick={onDownloadFormSubmissions}
+                disabled={isDownloading}
+                className="cursor-pointer hover:bg-gray-100"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Form Submissions
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={onDownloadStaffRatios}
+                disabled={isDownloading}
+                className="cursor-pointer hover:bg-gray-100"
+              >
+                <Database className="h-4 w-4 mr-2" />
+                Staff-Child Ratios
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={onDownloadEnrollmentAttendance}
+                disabled={isDownloading}
+                className="cursor-pointer hover:bg-gray-100"
+              >
+                <Database className="h-4 w-4 mr-2" />
+                Enrollment & Attendance
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={onDownloadAll}
+                disabled={isDownloading}
+                className="cursor-pointer hover:bg-gray-100 font-semibold"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                All Data (Google Sheets)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {!hasData && (
             <p className="text-xs text-muted-foreground mt-1">No data available</p>
           )}
           <p className="text-xs text-muted-foreground mt-1">
-            Includes: Forms, Ratios & Attendance
+            Choose data to export
           </p>
         </CardContent>
       </Card>
