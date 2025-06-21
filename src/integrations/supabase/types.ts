@@ -78,6 +78,66 @@ export type Database = {
         }
         Relationships: []
       }
+      room_planner: {
+        Row: {
+          age_group: string
+          created_at: string
+          friday_children: number
+          friday_staff: number
+          id: string
+          monday_children: number
+          monday_staff: number
+          ratio: string
+          room_name: string
+          site: string
+          thursday_children: number
+          thursday_staff: number
+          tuesday_children: number
+          tuesday_staff: number
+          updated_at: string
+          wednesday_children: number
+          wednesday_staff: number
+        }
+        Insert: {
+          age_group: string
+          created_at?: string
+          friday_children?: number
+          friday_staff?: number
+          id?: string
+          monday_children?: number
+          monday_staff?: number
+          ratio: string
+          room_name: string
+          site: string
+          thursday_children?: number
+          thursday_staff?: number
+          tuesday_children?: number
+          tuesday_staff?: number
+          updated_at?: string
+          wednesday_children?: number
+          wednesday_staff?: number
+        }
+        Update: {
+          age_group?: string
+          created_at?: string
+          friday_children?: number
+          friday_staff?: number
+          id?: string
+          monday_children?: number
+          monday_staff?: number
+          ratio?: string
+          room_name?: string
+          site?: string
+          thursday_children?: number
+          thursday_staff?: number
+          tuesday_children?: number
+          tuesday_staff?: number
+          updated_at?: string
+          wednesday_children?: number
+          wednesday_staff?: number
+        }
+        Relationships: []
+      }
       staff_child_ratios: {
         Row: {
           actual_ratio: string

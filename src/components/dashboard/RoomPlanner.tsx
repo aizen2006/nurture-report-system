@@ -1,19 +1,34 @@
 
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { ChevronRight, Info } from 'lucide-react';
 
 const RoomPlanner = () => {
   const [selectedSite, setSelectedSite] = useState('all');
 
+  const { data: roomPlannerData, isLoading } = useQuery({
+    queryKey: ['room_planner'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('room_planner')
+        .select('*')
+        .order('site', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const sites = [
     { id: 'all', name: 'All Sites' },
-    { id: 'site-a', name: 'Site A' },
-    { id: 'site-b', name: 'Site B' },
-    { id: 'site-c', name: 'Site C' }
+    ...Array.from(new Set(roomPlannerData?.map(item => item.site) || [])).map(site => ({
+      id: site.toLowerCase().replace(/\s+/g, '-'),
+      name: site
+    }))
   ];
 
   const weekDays = [
@@ -24,70 +39,27 @@ const RoomPlanner = () => {
     { day: 'Fri', date: '2 Aug', status: 'complete' }
   ];
 
-  const allSitesRooms = [
-    {
-      name: 'Site A - Baby Room',
-      totalChildren: [11, 9, 11, 11, 9],
-      staffRequired: [4, 3, 4, 4, 3],
-      ratio: '1:3'
-    },
-    {
-      name: 'Site A - Pre-School Room', 
-      totalChildren: [8, 9, 10, 7, 6],
-      staffRequired: [1, 1, 1, 1, 1],
-      ratio: '1:8'
-    },
-    {
-      name: 'Site A - Toddler Room',
-      totalChildren: [7, 8, 6, 7, 6],
-      staffRequired: [2, 2, 2, 2, 2],
-      ratio: '1:4'
-    },
-    {
-      name: 'Site B - Baby Room',
-      totalChildren: [9, 8, 10, 9, 8],
-      staffRequired: [3, 3, 3, 3, 3],
-      ratio: '1:3'
-    },
-    {
-      name: 'Site B - Pre-School Room',
-      totalChildren: [12, 11, 13, 10, 9],
-      staffRequired: [2, 1, 2, 1, 1],
-      ratio: '1:8'
-    },
-    {
-      name: 'Site B - Toddler Room',
-      totalChildren: [6, 7, 5, 6, 7],
-      staffRequired: [2, 2, 1, 2, 2],
-      ratio: '1:4'
-    },
-    {
-      name: 'Site C - Baby Room',
-      totalChildren: [13, 12, 14, 13, 11],
-      staffRequired: [4, 4, 5, 4, 4],
-      ratio: '1:3'
-    },
-    {
-      name: 'Site C - Pre-School Room',
-      totalChildren: [15, 14, 16, 13, 12],
-      staffRequired: [2, 2, 2, 2, 2],
-      ratio: '1:8'
-    },
-    {
-      name: 'Site C - Toddler Room',
-      totalChildren: [8, 9, 7, 8, 8],
-      staffRequired: [2, 2, 2, 2, 2],
-      ratio: '1:4'
-    }
-  ];
-
   const getFilteredRooms = () => {
+    if (!roomPlannerData) return [];
+    
     if (selectedSite === 'all') {
-      return allSitesRooms;
+      return roomPlannerData.map(room => ({
+        name: `${room.site} - ${room.room_name}`,
+        totalChildren: [room.monday_children, room.tuesday_children, room.wednesday_children, room.thursday_children, room.friday_children],
+        staffRequired: [room.monday_staff, room.tuesday_staff, room.wednesday_staff, room.thursday_staff, room.friday_staff],
+        ratio: room.ratio
+      }));
+    } else {
+      const selectedSiteName = sites.find(s => s.id === selectedSite)?.name;
+      return roomPlannerData
+        .filter(room => room.site === selectedSiteName)
+        .map(room => ({
+          name: `${room.site} - ${room.room_name}`,
+          totalChildren: [room.monday_children, room.tuesday_children, room.wednesday_children, room.thursday_children, room.friday_children],
+          staffRequired: [room.monday_staff, room.tuesday_staff, room.wednesday_staff, room.thursday_staff, room.friday_staff],
+          ratio: room.ratio
+        }));
     }
-    return allSitesRooms.filter(room => 
-      room.name.toLowerCase().includes(selectedSite.replace('-', ' '))
-    );
   };
 
   const getSummary = () => {
@@ -108,6 +80,26 @@ const RoomPlanner = () => {
 
     return summary;
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span>Room planner</span>
+            <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+              <Info className="h-4 w-4" />
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const filteredRooms = getFilteredRooms();
   const summary = getSummary();
@@ -137,80 +129,86 @@ const RoomPlanner = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Weekly Schedule */}
-        <div className="space-y-4">
-          {/* Day Headers */}
-          <div className="grid grid-cols-6 gap-2 text-sm">
-            <div></div>
-            {weekDays.map((day, index) => (
-              <div key={index} className="text-center">
-                <div className="font-medium">{day.day}</div>
-                <div className="text-gray-500 text-xs">{day.date}</div>
-                <div className="mt-2 h-12 bg-green-500 rounded flex items-center justify-center text-white text-xs">
-                  08:00<br/>18:00
+        {filteredRooms.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <p>No room planner data available.</p>
+            <p className="text-sm mt-2">Data will appear here once room planning is configured.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Day Headers */}
+            <div className="grid grid-cols-6 gap-2 text-sm">
+              <div></div>
+              {weekDays.map((day, index) => (
+                <div key={index} className="text-center">
+                  <div className="font-medium">{day.day}</div>
+                  <div className="text-gray-500 text-xs">{day.date}</div>
+                  <div className="mt-2 h-12 bg-green-500 rounded flex items-center justify-center text-white text-xs">
+                    08:00<br/>18:00
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Room Details */}
+            {filteredRooms.map((room, roomIndex) => (
+              <div key={roomIndex} className="space-y-2">
+                <div className="flex items-center gap-2 font-medium">
+                  <ChevronRight className="h-4 w-4" />
+                  {room.name}
+                </div>
+                
+                <div className="grid grid-cols-6 gap-2 pl-6">
+                  <div className="text-sm text-gray-600">Total Children</div>
+                  {room.totalChildren.map((count, dayIndex) => (
+                    <div key={dayIndex} className="text-center text-sm font-medium">
+                      {count}
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="grid grid-cols-6 gap-2 pl-6">
+                  <div className="text-sm text-gray-600">
+                    Staff Required (Ratio {room.ratio})
+                  </div>
+                  {room.staffRequired.map((staff, dayIndex) => (
+                    <div key={dayIndex} className="text-center text-sm">
+                      {staff}
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
-          </div>
 
-          {/* Room Details */}
-          {filteredRooms.map((room, roomIndex) => (
-            <div key={roomIndex} className="space-y-2">
-              <div className="flex items-center gap-2 font-medium">
-                <ChevronRight className="h-4 w-4" />
-                {room.name}
-              </div>
+            {/* Summary */}
+            <div className="border-t pt-4 space-y-2">
+              <div className="font-medium">Summary</div>
               
-              <div className="grid grid-cols-6 gap-2 pl-6">
-                <div className="text-sm text-gray-600">Total Children</div>
-                {room.totalChildren.map((count, dayIndex) => (
+              <div className="grid grid-cols-6 gap-2">
+                <div className="text-sm text-gray-600 flex items-center gap-1">
+                  Total Children
+                  <Button variant="ghost" size="sm" className="p-0 h-4 w-4">
+                    <Info className="h-3 w-3 text-blue-500" />
+                  </Button>
+                </div>
+                {summary.totalChildren.map((count, dayIndex) => (
                   <div key={dayIndex} className="text-center text-sm font-medium">
                     {count}
                   </div>
                 ))}
               </div>
               
-              <div className="grid grid-cols-6 gap-2 pl-6">
-                <div className="text-sm text-gray-600">
-                  Staff Required (Ratio {room.ratio})
-                </div>
-                {room.staffRequired.map((staff, dayIndex) => (
-                  <div key={dayIndex} className="text-center text-sm">
+              <div className="grid grid-cols-6 gap-2">
+                <div className="text-sm text-gray-600">Staff Required</div>
+                {summary.staffRequired.map((staff, dayIndex) => (
+                  <div key={dayIndex} className="text-center text-sm font-medium">
                     {staff}
                   </div>
                 ))}
               </div>
             </div>
-          ))}
-
-          {/* Summary */}
-          <div className="border-t pt-4 space-y-2">
-            <div className="font-medium">Summary</div>
-            
-            <div className="grid grid-cols-6 gap-2">
-              <div className="text-sm text-gray-600 flex items-center gap-1">
-                Total Children
-                <Button variant="ghost" size="sm" className="p-0 h-4 w-4">
-                  <Info className="h-3 w-3 text-blue-500" />
-                </Button>
-              </div>
-              {summary.totalChildren.map((count, dayIndex) => (
-                <div key={dayIndex} className="text-center text-sm font-medium">
-                  {count}
-                </div>
-              ))}
-            </div>
-            
-            <div className="grid grid-cols-6 gap-2">
-              <div className="text-sm text-gray-600">Staff Required</div>
-              {summary.staffRequired.map((staff, dayIndex) => (
-                <div key={dayIndex} className="text-center text-sm font-medium">
-                  {staff}
-                </div>
-              ))}
-            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { createCSVFromData, downloadCSV, formatSubmissionsForCSV } from '../utils/csvExport';
 
 export const useGoogleSheetsDownload = (submissions: any[]) => {
   const { toast } = useToast();
@@ -11,184 +10,183 @@ export const useGoogleSheetsDownload = (submissions: any[]) => {
   const downloadGoogleSheet = async () => {
     setIsDownloading(true);
     try {
-      console.log("Starting multi-sheet download process...");
-      
-      // Fetch all data sources
-      const [submissionsResponse, ratiosResponse, enrollmentResponse] = await Promise.all([
-        // Form submissions (already passed as parameter, but fetch fresh data)
+      console.log("Starting Google Sheets download process...");
+
+      // Fetch all data from different tables
+      const [formSubmissionsResult, staffRatiosResult, enrollmentResult, roomPlannerResult] = await Promise.all([
         supabase.from('form_submissions').select('*').order('submitted_at', { ascending: false }),
-        // Staff-child ratios
         supabase.from('staff_child_ratios').select('*').order('created_at', { ascending: false }),
-        // Enrollment & attendance
-        supabase.from('enrollment_attendance').select('*').order('date', { ascending: false })
+        supabase.from('enrollment_attendance').select('*').order('date', { ascending: false }),
+        supabase.from('room_planner').select('*').order('created_at', { ascending: false })
       ]);
 
-      if (submissionsResponse.error) throw submissionsResponse.error;
-      if (ratiosResponse.error) throw ratiosResponse.error;
-      if (enrollmentResponse.error) throw enrollmentResponse.error;
+      if (formSubmissionsResult.error) throw formSubmissionsResult.error;
+      if (staffRatiosResult.error) throw staffRatiosResult.error;
+      if (enrollmentResult.error) throw enrollmentResult.error;
+      if (roomPlannerResult.error) throw roomPlannerResult.error;
 
-      const formattedSubmissions = formatSubmissionsForCSV(submissionsResponse.data || []);
-      const formattedRatios = formatRatiosForCSV(ratiosResponse.data || []);
-      const formattedEnrollment = formatEnrollmentForCSV(enrollmentResponse.data || []);
+      // Format data for each sheet
+      const formSubmissionsData = formSubmissionsResult.data?.map((submission, index) => {
+        const parsedData = typeof submission.submission_data === 'string' 
+          ? JSON.parse(submission.submission_data) 
+          : submission.submission_data;
 
-      // Try Google Sheets integration first
-      const { data, error } = await supabase.functions.invoke('google-sheets-integration', {
-        method: 'POST',
-        body: {
-          action: 'createMultipleSheets',
-          sheets: [
-            { name: 'Form Submissions', data: formattedSubmissions },
-            { name: 'Staff Child Ratios', data: formattedRatios },
-            { name: 'Enrollment Attendance', data: formattedEnrollment }
-          ]
-        }
+        return {
+          id: index + 1,
+          timestamp: new Date(submission.submitted_at).toLocaleString(),
+          full_name: submission.full_name,
+          email: submission.email,
+          role: submission.role,
+          nursery_name: parsedData?.nursery_name || '',
+          total_questions: parsedData?.total_questions || 0,
+          answered_questions: parsedData?.answered_questions || 0,
+          compliance_rate: parsedData?.total_questions > 0 
+            ? Math.round((parsedData.answered_questions / parsedData.total_questions) * 100) 
+            : 0
+        };
+      }) || [];
+
+      const staffRatiosData = staffRatiosResult.data?.map((ratio, index) => ({
+        id: index + 1,
+        branch: ratio.branch,
+        room: ratio.room,
+        age_group: ratio.age_group,
+        staff_count: ratio.staff_count,
+        children_count: ratio.children_count,
+        required_ratio: ratio.required_ratio,
+        actual_ratio: ratio.actual_ratio,
+        status: ratio.status,
+        created_at: new Date(ratio.created_at).toLocaleString()
+      })) || [];
+
+      const enrollmentData = enrollmentResult.data?.map((item, index) => ({
+        id: index + 1,
+        site: item.site,
+        date: item.date,
+        staff_count: item.staff_count,
+        children_enrolled: item.children_enrolled,
+        children_present: item.children_present,
+        planned_capacity: item.planned_capacity || 0,
+        occupancy_rate: `${item.occupancy_rate}%`,
+        staff_attendance_rate: `${item.staff_attendance_rate}%`,
+        created_at: new Date(item.created_at).toLocaleString()
+      })) || [];
+
+      const roomPlannerData = roomPlannerResult.data?.map((room, index) => ({
+        id: index + 1,
+        site: room.site,
+        room_name: room.room_name,
+        age_group: room.age_group,
+        ratio: room.ratio,
+        monday_children: room.monday_children,
+        tuesday_children: room.tuesday_children,
+        wednesday_children: room.wednesday_children,
+        thursday_children: room.thursday_children,
+        friday_children: room.friday_children,
+        monday_staff: room.monday_staff,
+        tuesday_staff: room.tuesday_staff,
+        wednesday_staff: room.wednesday_staff,
+        thursday_staff: room.thursday_staff,
+        friday_staff: room.friday_staff,
+        created_at: new Date(room.created_at).toLocaleString()
+      })) || [];
+
+      // Create multi-sheet structure
+      const sheetsData = {
+        action: 'createMultipleSheets',
+        sheets: [
+          {
+            name: 'Form Submissions',
+            headers: ['ID', 'Timestamp', 'Full Name', 'Email', 'Role', 'Nursery', 'Total Questions', 'Answered Questions', 'Compliance Rate'],
+            data: formSubmissionsData
+          },
+          {
+            name: 'Staff Child Ratios',
+            headers: ['ID', 'Branch', 'Room', 'Age Group', 'Staff Count', 'Children Count', 'Required Ratio', 'Actual Ratio', 'Status', 'Created At'],
+            data: staffRatiosData
+          },
+          {
+            name: 'Enrollment Attendance',
+            headers: ['ID', 'Site', 'Date', 'Staff Count', 'Children Enrolled', 'Children Present', 'Planned Capacity', 'Occupancy Rate', 'Staff Attendance Rate', 'Created At'],
+            data: enrollmentData
+          },
+          {
+            name: 'Room Planner',
+            headers: ['ID', 'Site', 'Room Name', 'Age Group', 'Ratio', 'Mon Children', 'Tue Children', 'Wed Children', 'Thu Children', 'Fri Children', 'Mon Staff', 'Tue Staff', 'Wed Staff', 'Thu Staff', 'Fri Staff', 'Created At'],
+            data: roomPlannerData
+          }
+        ]
+      };
+
+      console.log("Sending multi-sheet data to Google Sheets function...");
+
+      const response = await supabase.functions.invoke('google-sheets-integration', {
+        body: sheetsData
       });
 
-      if (error) {
-        console.error("Supabase function error:", error);
-        throw error;
+      console.log("Google Sheets function response:", response);
+
+      if (response.error) {
+        throw new Error(`Function error: ${response.error.message}`);
       }
 
-      if (data?.success && data?.sheetUrl) {
-        window.open(data.sheetUrl, '_blank');
+      if (response.data?.success && response.data?.sheetUrl) {
+        // Open the Google Sheet in a new tab
+        window.open(response.data.sheetUrl, '_blank');
+        
         toast({
-          title: "Sheets Ready",
-          description: `Google Sheets opened with ${data.totalRecords} total records across 3 sheets`,
+          title: "Success!",
+          description: `Google Sheets created successfully with ${response.data.totalRecords || 'multiple'} records`,
+        });
+      } else if (response.data?.sheets) {
+        // Fallback: download as CSV files
+        console.log("Google Sheets failed, providing CSV fallback");
+        
+        response.data.sheets.forEach((sheet: any) => {
+          if (sheet.data && sheet.data.length > 0) {
+            const csvRows = [
+              sheet.headers.join(','),
+              ...sheet.data.map((row: any) => 
+                sheet.headers.map((header: string) => {
+                  const key = header.toLowerCase().replace(/\s+/g, '_');
+                  const value = row[key] || '';
+                  return typeof value === 'string' && value.includes(',') ? `"${value}"` : value;
+                }).join(',')
+              )
+            ];
+            
+            const csvContent = csvRows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${sheet.name.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+          }
+        });
+
+        toast({
+          title: "CSV Download",
+          description: "Google Sheets unavailable. Downloaded as CSV files instead.",
+          variant: "destructive",
         });
       } else {
-        // Fallback: download separate CSV files
-        const timestamp = new Date().toISOString().split('T')[0];
-        
-        if (formattedSubmissions.length > 0) {
-          const submissionsCsv = createCSVFromData(formattedSubmissions);
-          downloadCSV(submissionsCsv, `form-submissions-${timestamp}.csv`);
-        }
-        
-        if (formattedRatios.length > 0) {
-          const ratiosCsv = createCSVFromRatiosData(formattedRatios);
-          downloadCSV(ratiosCsv, `staff-child-ratios-${timestamp}.csv`);
-        }
-        
-        if (formattedEnrollment.length > 0) {
-          const enrollmentCsv = createCSVFromEnrollmentData(formattedEnrollment);
-          downloadCSV(enrollmentCsv, `enrollment-attendance-${timestamp}.csv`);
-        }
-
-        const totalRecords = formattedSubmissions.length + formattedRatios.length + formattedEnrollment.length;
-        toast({
-          title: "CSV Files Downloaded",
-          description: `Downloaded ${totalRecords} total records across 3 CSV files`,
-        });
+        throw new Error("No valid response from Google Sheets integration");
       }
+
     } catch (error) {
-      console.error('Download error:', error);
-      
-      // Final fallback: create CSV from local data
-      const timestamp = new Date().toISOString().split('T')[0];
-      let downloadedFiles = 0;
-      
-      if (submissions && submissions.length > 0) {
-        const formattedData = formatSubmissionsForCSV(submissions);
-        const csvContent = createCSVFromData(formattedData);
-        downloadCSV(csvContent, `form-submissions-backup-${timestamp}.csv`);
-        downloadedFiles++;
-      }
-
+      console.error('Google Sheets download error:', error);
       toast({
-        title: downloadedFiles > 0 ? "Backup CSV Downloaded" : "Download Failed",
-        description: downloadedFiles > 0 
-          ? `Downloaded ${downloadedFiles} backup file(s)`
-          : "Failed to download data and no backup available.",
-        variant: downloadedFiles > 0 ? "default" : "destructive",
+        title: "Download Failed",
+        description: "Failed to create Google Sheets. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsDownloading(false);
     }
   };
 
-  return { downloadGoogleSheet, isDownloading };
-};
-
-// Helper function to format staff-child ratios for CSV
-const formatRatiosForCSV = (ratios: any[]) => {
-  return ratios.map((ratio, index) => ({
-    id: index + 1,
-    branch: ratio.branch,
-    room: ratio.room,
-    age_group: ratio.age_group,
-    staff_count: ratio.staff_count,
-    children_count: ratio.children_count,
-    required_ratio: ratio.required_ratio,
-    actual_ratio: ratio.actual_ratio,
-    status: ratio.status,
-    created_at: ratio.created_at,
-    updated_at: ratio.updated_at
-  }));
-};
-
-// Helper function to format enrollment & attendance for CSV
-const formatEnrollmentForCSV = (enrollment: any[]) => {
-  return enrollment.map((item, index) => ({
-    id: index + 1,
-    site: item.site,
-    date: item.date,
-    staff_count: item.staff_count,
-    children_enrolled: item.children_enrolled,
-    children_present: item.children_present,
-    planned_capacity: item.planned_capacity || 0,
-    occupancy_rate: item.occupancy_rate,
-    staff_attendance_rate: item.staff_attendance_rate,
-    created_at: item.created_at,
-    updated_at: item.updated_at
-  }));
-};
-
-// Helper function to create CSV from ratios data
-const createCSVFromRatiosData = (data: any[]) => {
-  if (!data || data.length === 0) return '';
-  
-  const headers = ['ID', 'Branch', 'Room', 'Age Group', 'Staff Count', 'Children Count', 'Required Ratio', 'Actual Ratio', 'Status', 'Created At', 'Updated At'];
-  const csvRows = [
-    headers.join(','),
-    ...data.map(row => [
-      row.id,
-      `"${row.branch}"`,
-      `"${row.room}"`,
-      `"${row.age_group}"`,
-      row.staff_count,
-      row.children_count,
-      `"${row.required_ratio}"`,
-      `"${row.actual_ratio}"`,
-      `"${row.status}"`,
-      row.created_at,
-      row.updated_at
-    ].join(','))
-  ];
-  
-  return csvRows.join('\n');
-};
-
-// Helper function to create CSV from enrollment data
-const createCSVFromEnrollmentData = (data: any[]) => {
-  if (!data || data.length === 0) return '';
-  
-  const headers = ['ID', 'Site', 'Date', 'Staff Count', 'Children Enrolled', 'Children Present', 'Planned Capacity', 'Occupancy Rate', 'Staff Attendance Rate', 'Created At', 'Updated At'];
-  const csvRows = [
-    headers.join(','),
-    ...data.map(row => [
-      row.id,
-      `"${row.site}"`,
-      row.date,
-      row.staff_count,
-      row.children_enrolled,
-      row.children_present,
-      row.planned_capacity,
-      `${row.occupancy_rate}%`,
-      `${row.staff_attendance_rate}%`,
-      row.created_at,
-      row.updated_at
-    ].join(','))
-  ];
-  
-  return csvRows.join('\n');
+  return {
+    downloadGoogleSheet,
+    isDownloading
+  };
 };
