@@ -9,6 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      enrollment_attendance: {
+        Row: {
+          children_enrolled: number
+          children_present: number
+          created_at: string
+          date: string
+          id: string
+          occupancy_rate: number
+          planned_capacity: number | null
+          site: string
+          staff_attendance_rate: number
+          staff_count: number
+          updated_at: string
+        }
+        Insert: {
+          children_enrolled: number
+          children_present: number
+          created_at?: string
+          date: string
+          id?: string
+          occupancy_rate: number
+          planned_capacity?: number | null
+          site: string
+          staff_attendance_rate?: number
+          staff_count: number
+          updated_at?: string
+        }
+        Update: {
+          children_enrolled?: number
+          children_present?: number
+          created_at?: string
+          date?: string
+          id?: string
+          occupancy_rate?: number
+          planned_capacity?: number | null
+          site?: string
+          staff_attendance_rate?: number
+          staff_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       form_submissions: {
         Row: {
           created_at: string
@@ -33,6 +75,48 @@ export type Database = {
           role?: string
           submission_data?: Json
           submitted_at?: string
+        }
+        Relationships: []
+      }
+      staff_child_ratios: {
+        Row: {
+          actual_ratio: string
+          age_group: string
+          branch: string
+          children_count: number
+          created_at: string
+          id: string
+          required_ratio: string
+          room: string
+          staff_count: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actual_ratio: string
+          age_group: string
+          branch: string
+          children_count: number
+          created_at?: string
+          id?: string
+          required_ratio: string
+          room: string
+          staff_count: number
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          actual_ratio?: string
+          age_group?: string
+          branch?: string
+          children_count?: number
+          created_at?: string
+          id?: string
+          required_ratio?: string
+          room?: string
+          staff_count?: number
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }

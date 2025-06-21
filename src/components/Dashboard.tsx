@@ -10,8 +10,6 @@ import KeyMetrics from './dashboard/KeyMetrics';
 import ComplianceByRole from './dashboard/ComplianceByRole';
 import RecentActivity from './dashboard/RecentActivity';
 import RoomPlanner from './dashboard/RoomPlanner';
-import StaffChildRatioTable from './dashboard/StaffChildRatioTable';
-import EnrollmentAttendanceTable from './dashboard/EnrollmentAttendanceTable';
 import { calculateComplianceData, getRecentEntries } from './dashboard/utils/dataProcessing';
 import { useGoogleSheetsDownload } from './dashboard/hooks/useGoogleSheetsDownload';
 
@@ -58,12 +56,6 @@ const Dashboard = () => {
 
       {/* Room Planner Section */}
       <RoomPlanner />
-
-      {/* Data Collection Tables */}
-      <div className="space-y-6">
-        <StaffChildRatioTable />
-        <EnrollmentAttendanceTable />
-      </div>
 
       {/* Key Metrics */}
       <KeyMetrics
