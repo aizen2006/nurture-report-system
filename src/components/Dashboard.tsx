@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +10,7 @@ import KeyMetrics from './dashboard/KeyMetrics';
 import ComplianceByRole from './dashboard/ComplianceByRole';
 import RecentActivity from './dashboard/RecentActivity';
 import AlertsIssues from './dashboard/AlertsIssues';
+import RoomPlanner from './dashboard/RoomPlanner';
 
 // Type for the submission data structure
 interface SubmissionData {
@@ -301,6 +301,9 @@ const Dashboard = () => {
         <EnrollmentAttendance />
         <AISuggestions />
       </div>
+
+      {/* Room Planner Section */}
+      <RoomPlanner />
 
       {/* Key Metrics */}
       <KeyMetrics
