@@ -19,6 +19,10 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import ComplianceOverview from './dashboard/ComplianceOverview';
+import StaffChildRatio from './dashboard/StaffChildRatio';
+import EnrollmentAttendance from './dashboard/EnrollmentAttendance';
+import AISuggestions from './dashboard/AISuggestions';
 
 // Type for the submission data structure
 interface SubmissionData {
@@ -299,6 +303,17 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Enhanced Nursery Management Dashboard Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ComplianceOverview />
+        <StaffChildRatio />
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <EnrollmentAttendance />
+        <AISuggestions />
+      </div>
+
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
