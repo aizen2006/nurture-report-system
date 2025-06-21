@@ -2,15 +2,19 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ChevronRight, Info } from 'lucide-react';
 
 const RoomPlanner = () => {
-  const [showAllergies, setShowAllergies] = useState(false);
-  const [showSpecialDietary, setShowSpecialDietary] = useState(false);
-  const [showChildSignature, setShowChildSignature] = useState(false);
-  const [showStaffSignature, setShowStaffSignature] = useState(false);
+  const [selectedSite, setSelectedSite] = useState('all');
+
+  const sites = [
+    { id: 'all', name: 'All Sites' },
+    { id: 'site-a', name: 'Site A' },
+    { id: 'site-b', name: 'Site B' },
+    { id: 'site-c', name: 'Site C' }
+  ];
 
   const weekDays = [
     { day: 'Mon', date: '29 Jul', status: 'complete' },
@@ -20,104 +24,119 @@ const RoomPlanner = () => {
     { day: 'Fri', date: '2 Aug', status: 'complete' }
   ];
 
-  const rooms = [
+  const allSitesRooms = [
     {
-      name: 'Perkins Baby Room',
+      name: 'Site A - Baby Room',
       totalChildren: [11, 9, 11, 11, 9],
-      staffRequired: [3.7, 3, 3.7, 3.7, 3],
+      staffRequired: [4, 3, 4, 4, 3],
       ratio: '1:3'
     },
     {
-      name: 'Perkins Pre-School Room', 
+      name: 'Site A - Pre-School Room', 
       totalChildren: [8, 9, 10, 7, 6],
-      staffRequired: [1, 1.1, 1.3, 0.9, 0.8],
+      staffRequired: [1, 1, 1, 1, 1],
       ratio: '1:8'
     },
     {
-      name: 'Perkins Toddler Room',
+      name: 'Site A - Toddler Room',
       totalChildren: [7, 8, 6, 7, 6],
-      staffRequired: [1.8, 2, 1.5, 1.8, 1.5],
+      staffRequired: [2, 2, 2, 2, 2],
+      ratio: '1:4'
+    },
+    {
+      name: 'Site B - Baby Room',
+      totalChildren: [9, 8, 10, 9, 8],
+      staffRequired: [3, 3, 3, 3, 3],
+      ratio: '1:3'
+    },
+    {
+      name: 'Site B - Pre-School Room',
+      totalChildren: [12, 11, 13, 10, 9],
+      staffRequired: [2, 1, 2, 1, 1],
+      ratio: '1:8'
+    },
+    {
+      name: 'Site B - Toddler Room',
+      totalChildren: [6, 7, 5, 6, 7],
+      staffRequired: [2, 2, 1, 2, 2],
+      ratio: '1:4'
+    },
+    {
+      name: 'Site C - Baby Room',
+      totalChildren: [13, 12, 14, 13, 11],
+      staffRequired: [4, 4, 5, 4, 4],
+      ratio: '1:3'
+    },
+    {
+      name: 'Site C - Pre-School Room',
+      totalChildren: [15, 14, 16, 13, 12],
+      staffRequired: [2, 2, 2, 2, 2],
+      ratio: '1:8'
+    },
+    {
+      name: 'Site C - Toddler Room',
+      totalChildren: [8, 9, 7, 8, 8],
+      staffRequired: [2, 2, 2, 2, 2],
       ratio: '1:4'
     }
   ];
 
-  const summary = {
-    totalChildren: [26, 26, 27, 25, 21],
-    staffRequired: [7, 7, 8, 7, 6]
+  const getFilteredRooms = () => {
+    if (selectedSite === 'all') {
+      return allSitesRooms;
+    }
+    return allSitesRooms.filter(room => 
+      room.name.toLowerCase().includes(selectedSite.replace('-', ' '))
+    );
   };
 
-  // Handler functions to convert CheckedState to boolean
-  const handleAllergiesChange = (checked: boolean | "indeterminate") => {
-    setShowAllergies(checked === true);
+  const getSummary = () => {
+    const filteredRooms = getFilteredRooms();
+    const summary = {
+      totalChildren: [0, 0, 0, 0, 0],
+      staffRequired: [0, 0, 0, 0, 0]
+    };
+    
+    filteredRooms.forEach(room => {
+      room.totalChildren.forEach((count, index) => {
+        summary.totalChildren[index] += count;
+      });
+      room.staffRequired.forEach((count, index) => {
+        summary.staffRequired[index] += count;
+      });
+    });
+
+    return summary;
   };
 
-  const handleSpecialDietaryChange = (checked: boolean | "indeterminate") => {
-    setShowSpecialDietary(checked === true);
-  };
-
-  const handleChildSignatureChange = (checked: boolean | "indeterminate") => {
-    setShowChildSignature(checked === true);
-  };
-
-  const handleStaffSignatureChange = (checked: boolean | "indeterminate") => {
-    setShowStaffSignature(checked === true);
-  };
+  const filteredRooms = getFilteredRooms();
+  const summary = getSummary();
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span>Room planner</span>
-          <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
-            <Info className="h-4 w-4" />
-          </Button>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>Room planner</span>
+            <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+              <Info className="h-4 w-4" />
+            </Button>
+          </div>
+          <Select value={selectedSite} onValueChange={setSelectedSite}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Select Site" />
+            </SelectTrigger>
+            <SelectContent>
+              {sites.map((site) => (
+                <SelectItem key={site.id} value={site.id}>
+                  {site.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Filter Options */}
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="allergies" 
-              checked={showAllergies}
-              onCheckedChange={handleAllergiesChange}
-            />
-            <label htmlFor="allergies" className="text-sm font-medium">
-              Show Allergies
-            </label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="dietary" 
-              checked={showSpecialDietary}
-              onCheckedChange={handleSpecialDietaryChange}
-            />
-            <label htmlFor="dietary" className="text-sm font-medium">
-              Show Special Dietary Considerations
-            </label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="child-signature" 
-              checked={showChildSignature}
-              onCheckedChange={handleChildSignatureChange}
-            />
-            <label htmlFor="child-signature" className="text-sm font-medium">
-              Child Signature Fields
-            </label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="staff-signature" 
-              checked={showStaffSignature}
-              onCheckedChange={handleStaffSignatureChange}
-            />
-            <label htmlFor="staff-signature" className="text-sm font-medium">
-              Staff Signature Fields
-            </label>
-          </div>
-        </div>
-
         {/* Weekly Schedule */}
         <div className="space-y-4">
           {/* Day Headers */}
@@ -135,7 +154,7 @@ const RoomPlanner = () => {
           </div>
 
           {/* Room Details */}
-          {rooms.map((room, roomIndex) => (
+          {filteredRooms.map((room, roomIndex) => (
             <div key={roomIndex} className="space-y-2">
               <div className="flex items-center gap-2 font-medium">
                 <ChevronRight className="h-4 w-4" />

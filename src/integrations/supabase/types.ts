@@ -14,7 +14,6 @@ export type Database = {
           created_at: string
           email: string
           full_name: string
-          id: string
           role: string
           submission_data: Json
           submitted_at: string
@@ -23,7 +22,6 @@ export type Database = {
           created_at?: string
           email: string
           full_name: string
-          id?: string
           role: string
           submission_data: Json
           submitted_at?: string
@@ -32,7 +30,6 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string
-          id?: string
           role?: string
           submission_data?: Json
           submitted_at?: string

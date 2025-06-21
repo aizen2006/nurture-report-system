@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,8 +10,9 @@ import AISuggestions from './dashboard/AISuggestions';
 import KeyMetrics from './dashboard/KeyMetrics';
 import ComplianceByRole from './dashboard/ComplianceByRole';
 import RecentActivity from './dashboard/RecentActivity';
-import AlertsIssues from './dashboard/AlertsIssues';
 import RoomPlanner from './dashboard/RoomPlanner';
+import StaffChildRatioTable from './dashboard/StaffChildRatioTable';
+import EnrollmentAttendanceTable from './dashboard/EnrollmentAttendanceTable';
 
 // Type for the submission data structure
 interface SubmissionData {
@@ -242,7 +244,7 @@ const Dashboard = () => {
   const createCSVFromData = (data: any[]) => {
     if (!data || data.length === 0) return '';
     
-    const headers = ['ID', 'Timestamp', 'Full Name', 'Email', 'Role', 'Nursery', 'Total Questions', 'Answered Questions', 'Compliance Rate'];
+    const headers =  ['ID', 'Timestamp', 'Full Name', 'Email', 'Role', 'Nursery', 'Total Questions', 'Answered Questions', 'Compliance Rate'];
     const csvRows = [
       headers.join(','),
       ...data.map(row => [
@@ -287,29 +289,32 @@ const Dashboard = () => {
 
   const complianceData = calculateComplianceData();
   const recentEntries = getRecentEntries();
-  const alerts = getAlertsFromSubmissions();
 
   return (
     <div className="space-y-6">
-      {/* Enhanced Nursery Management Dashboard Layout */}
+      {/* Top Row - Compliance Overview and Staff Child Ratio */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ComplianceOverview />
         <StaffChildRatio />
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <EnrollmentAttendance />
-        <AISuggestions />
-      </div>
+      {/* Second Row - Enrollment & Attendance */}
+      <EnrollmentAttendance />
 
       {/* Room Planner Section */}
       <RoomPlanner />
+
+      {/* Data Collection Tables */}
+      <div className="space-y-6">
+        <StaffChildRatioTable />
+        <EnrollmentAttendanceTable />
+      </div>
 
       {/* Key Metrics */}
       <KeyMetrics
         overallCompliance={complianceData.overall}
         totalSubmissions={submissions?.length || 0}
-        activeAlerts={alerts.length}
+        activeAlerts={0}
         onDownload={downloadGoogleSheet}
         isDownloading={isDownloading}
         hasData={submissions && submissions.length > 0}
@@ -318,11 +323,10 @@ const Dashboard = () => {
       {/* Compliance by Role */}
       <ComplianceByRole complianceData={complianceData} />
 
+      {/* Recent Activity and AI Suggestions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
         <RecentActivity recentEntries={recentEntries} />
-        {/* Alerts & Issues */}
-        <AlertsIssues alerts={alerts} />
+        <AISuggestions />
       </div>
     </div>
   );
