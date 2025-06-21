@@ -5,7 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import OccupancyChart from './OccupancyChart';
+import EnrollmentSummary from './EnrollmentSummary';
+import AttendanceCharts from './AttendanceCharts';
 
 const EnrollmentAttendance = () => {
   const [selectedSite, setSelectedSite] = useState('all');
@@ -32,64 +34,94 @@ const EnrollmentAttendance = () => {
     }))
   ];
 
-  // Calculate current occupancy data
-  const latestData = enrollmentData?.[0];
-  const currentOccupancy = latestData?.children_present || 0;
-  const plannedCapacity = latestData?.planned_capacity || 100;
-  const occupancyData = [
-    { name: 'Occupied', value: currentOccupancy, color: '#3b82f6' },
-    { name: 'Available', value: Math.max(0, plannedCapacity - currentOccupancy), color: '#93c5fd' }
-  ];
+  // Get current occupancy data based on selected site
+  const getCurrentOccupancyData = () => {
+    if (!enrollmentData || enrollmentData.length === 0) return { occupancyData: [], currentOccupancy: 0, plannedCapacity: 0 };
 
-  // Process data for charts
+    if (selectedSite === 'all') {
+      // Get the most recent date's data
+      const mostRecentDate = enrollmentData.reduce((latest, item) => {
+        return new Date(item.date) > new Date(latest) ? item.date : latest;
+      }, enrollmentData[0].date);
+
+      const todayData = enrollmentData.filter(item => item.date === mostRecentDate);
+      const totalOccupied = todayData.reduce((sum, item) => sum + item.children_present, 0);
+      const totalCapacity = todayData.reduce((sum, item) => sum + (item.planned_capacity || 0), 0);
+
+      return {
+        occupancyData: [
+          { name: 'Occupied', value: totalOccupied, color: '#3b82f6' },
+          { name: 'Available', value: Math.max(0, totalCapacity - totalOccupied), color: '#93c5fd' }
+        ],
+        currentOccupancy: totalOccupied,
+        plannedCapacity: totalCapacity
+      };
+    } else {
+      // Filter by selected site
+      const selectedSiteName = sites.find(s => s.id === selectedSite)?.name;
+      const siteData = enrollmentData.filter(item => item.site === selectedSiteName);
+      const latestData = siteData[0] || { children_present: 0, planned_capacity: 0 };
+      
+      return {
+        occupancyData: [
+          { name: 'Occupied', value: latestData.children_present, color: '#3b82f6' },
+          { name: 'Available', value: Math.max(0, (latestData.planned_capacity || 0) - latestData.children_present), color: '#93c5fd' }
+        ],
+        currentOccupancy: latestData.children_present,
+        plannedCapacity: latestData.planned_capacity || 0
+      };
+    }
+  };
+
+  // Process data for line/bar charts
   const processChartData = () => {
     if (!enrollmentData) return { staffData: [], childData: [] };
 
-    const last5Days = enrollmentData.slice(0, 5).reverse();
+    const last15Records = enrollmentData.slice(0, 15).reverse();
     
     if (selectedSite === 'all') {
       // Group by date and aggregate by site
-      const groupedData = last5Days.reduce((acc: any, item) => {
-        const date = new Date(item.date).toLocaleDateString('en', { weekday: 'short' });
-        if (!acc[date]) {
-          acc[date] = { day: date, sites: {} };
+      const groupedByDate = last15Records.reduce((acc, item) => {
+        const dateKey = item.date;
+        if (!acc[dateKey]) {
+          acc[dateKey] = { date: dateKey, sites: {} };
         }
-        acc[date].sites[item.site] = {
+        acc[dateKey].sites[item.site] = {
           staff: item.staff_count,
           children: item.children_present
         };
         return acc;
       }, {});
 
-      const staffData = Object.values(groupedData).map((item: any) => ({
-        day: item.day,
-        ...Object.keys(item.sites).reduce((acc: any, site) => {
-          acc[site.replace(/\s+/g, '')] = item.sites[site].staff;
-          return acc;
-        }, {})
-      }));
+      const staffData = Object.values(groupedByDate).map((item: any) => {
+        const result = { day: new Date(item.date).toLocaleDateString('en', { month: 'short', day: 'numeric' }) };
+        Object.keys(item.sites).forEach(site => {
+          result[site.replace(/\s+/g, '')] = item.sites[site].staff;
+        });
+        return result;
+      });
 
-      const childData = Object.values(groupedData).map((item: any) => ({
-        day: item.day,
-        ...Object.keys(item.sites).reduce((acc: any, site) => {
-          acc[site.replace(/\s+/g, '')] = item.sites[site].children;
-          return acc;
-        }, {})
-      }));
+      const childData = Object.values(groupedByDate).map((item: any) => {
+        const result = { day: new Date(item.date).toLocaleDateString('en', { month: 'short', day: 'numeric' }) };
+        Object.keys(item.sites).forEach(site => {
+          result[site.replace(/\s+/g, '')] = item.sites[site].children;
+        });
+        return result;
+      });
 
       return { staffData, childData };
     } else {
       // Filter by selected site
       const selectedSiteName = sites.find(s => s.id === selectedSite)?.name;
-      const siteData = last5Days.filter(item => item.site === selectedSiteName);
+      const siteData = last15Records.filter(item => item.site === selectedSiteName);
       
       const staffData = siteData.map(item => ({
-        day: new Date(item.date).toLocaleDateString('en', { weekday: 'short' }),
+        day: new Date(item.date).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
         attendance: item.staff_count
       }));
 
       const childData = siteData.map(item => ({
-        day: new Date(item.date).toLocaleDateString('en', { weekday: 'short' }),
+        day: new Date(item.date).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
         attendance: item.children_present
       }));
 
@@ -97,18 +129,32 @@ const EnrollmentAttendance = () => {
     }
   };
 
-  const { staffData, childData } = processChartData();
-
-  // Calculate today's totals
-  const todayTotals = enrollmentData?.reduce((acc, item) => {
-    const today = new Date().toDateString();
-    const itemDate = new Date(item.date).toDateString();
-    if (itemDate === today) {
+  // Calculate today's totals based on selected site
+  const getTodayTotals = () => {
+    if (!enrollmentData) return { staff: 0, children: 0 };
+    
+    const mostRecentDate = enrollmentData.reduce((latest, item) => {
+      return new Date(item.date) > new Date(latest) ? item.date : latest;
+    }, enrollmentData[0].date);
+    
+    let relevantData = enrollmentData.filter(item => item.date === mostRecentDate);
+    
+    if (selectedSite !== 'all') {
+      const selectedSiteName = sites.find(s => s.id === selectedSite)?.name;
+      relevantData = relevantData.filter(item => item.site === selectedSiteName);
+    }
+    
+    return relevantData.reduce((acc, item) => {
       acc.staff += item.staff_count;
       acc.children += item.children_present;
-    }
-    return acc;
-  }, { staff: 0, children: 0 }) || { staff: 0, children: 0 };
+      return acc;
+    }, { staff: 0, children: 0 });
+  };
+
+  const { occupancyData, currentOccupancy, plannedCapacity } = getCurrentOccupancyData();
+  const { staffData, childData } = processChartData();
+  const todayTotals = getTodayTotals();
+  const currentSiteName = sites.find(s => s.id === selectedSite)?.name || 'All Sites';
 
   if (isLoading) {
     return (
@@ -168,139 +214,24 @@ const EnrollmentAttendance = () => {
           </div>
         ) : !showDetailedCharts ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm text-gray-700">Available vs Planned Occupancy</h4>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={occupancyData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={80}
-                    dataKey="value"
-                  >
-                    {occupancyData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex justify-center space-x-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span>Occupied ({currentOccupancy})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-300 rounded-full"></div>
-                  <span>Available ({plannedCapacity - currentOccupancy})</span>
-                </div>
-              </div>
-              <div className="text-center mt-4">
-                <div className="text-sm text-gray-500">
-                  Planned Capacity: {plannedCapacity}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-medium text-sm text-gray-700">Daily Attendance Overview</h4>
-              <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">Click "View Charts" to see detailed attendance data</p>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <div className="font-semibold text-blue-600">Staff Today</div>
-                    <div className="text-xl font-bold">{todayTotals.staff}</div>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-lg">
-                    <div className="font-semibold text-green-600">Children Today</div>
-                    <div className="text-xl font-bold">{todayTotals.children}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <OccupancyChart
+              occupancyData={occupancyData}
+              currentOccupancy={currentOccupancy}
+              plannedCapacity={plannedCapacity}
+              siteName={currentSiteName}
+            />
+            <EnrollmentSummary
+              todayTotals={todayTotals}
+              siteName={currentSiteName}
+            />
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm text-gray-700">
-                  Staff Attendance - {sites.find(s => s.id === selectedSite)?.name}
-                </h4>
-                <ResponsiveContainer width="100%" height={250}>
-                  {selectedSite === 'all' ? (
-                    <BarChart data={staffData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="day" />
-                      <YAxis />
-                      <Tooltip />
-                      {Object.keys(staffData[0] || {}).filter(key => key !== 'day').map((site, index) => (
-                        <Bar 
-                          key={site} 
-                          dataKey={site} 
-                          fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 4]} 
-                          name={site}
-                        />
-                      ))}
-                    </BarChart>
-                  ) : (
-                    <LineChart data={staffData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="day" />
-                      <YAxis />
-                      <Tooltip />
-                      <Line 
-                        type="monotone" 
-                        dataKey="attendance" 
-                        stroke="#3b82f6" 
-                        strokeWidth={3}
-                        dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                      />
-                    </LineChart>
-                  )}
-                </ResponsiveContainer>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm text-gray-700">
-                  Children Attendance - {sites.find(s => s.id === selectedSite)?.name}
-                </h4>
-                <ResponsiveContainer width="100%" height={250}>
-                  {selectedSite === 'all' ? (
-                    <BarChart data={childData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="day" />
-                      <YAxis />
-                      <Tooltip />
-                      {Object.keys(childData[0] || {}).filter(key => key !== 'day').map((site, index) => (
-                        <Bar 
-                          key={site} 
-                          dataKey={site} 
-                          fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 4]} 
-                          name={site}
-                        />
-                      ))}
-                    </BarChart>
-                  ) : (
-                    <LineChart data={childData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="day" />
-                      <YAxis />
-                      <Tooltip />
-                      <Line 
-                        type="monotone" 
-                        dataKey="attendance" 
-                        stroke="#10b981" 
-                        strokeWidth={3}
-                        dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-                      />
-                    </LineChart>
-                  )}
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
+          <AttendanceCharts
+            staffData={staffData}
+            childData={childData}
+            siteName={currentSiteName}
+            selectedSite={selectedSite}
+          />
         )}
       </CardContent>
     </Card>

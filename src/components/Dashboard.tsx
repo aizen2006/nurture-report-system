@@ -7,7 +7,6 @@ import StaffChildRatio from './dashboard/StaffChildRatio';
 import EnrollmentAttendance from './dashboard/EnrollmentAttendance';
 import AISuggestions from './dashboard/AISuggestions';
 import KeyMetrics from './dashboard/KeyMetrics';
-import ComplianceByRole from './dashboard/ComplianceByRole';
 import RecentActivity from './dashboard/RecentActivity';
 import RoomPlanner from './dashboard/RoomPlanner';
 import { calculateComplianceData, getRecentEntries } from './dashboard/utils/dataProcessing';
@@ -76,9 +75,6 @@ const Dashboard = () => {
         isDownloading={isDownloading}
         hasData={submissions && submissions.length > 0}
       />
-
-      {/* Compliance by Role */}
-      <ComplianceByRole complianceData={complianceData} />
 
       {/* Recent Activity and AI Suggestions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
