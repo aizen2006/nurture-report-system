@@ -204,10 +204,10 @@ const Dashboard = () => {
       
       // Final fallback: create CSV from local submissions data
       if (submissions && submissions.length > 0) {
-        const formattedData = submissions.map(sub => {
+        const formattedData = submissions.map((sub, index) => {
           const parsedData = parseSubmissionData(sub.submission_data);
           return {
-            id: sub.id,
+            id: index + 1, // Use index as ID since there's no actual ID field
             timestamp: sub.submitted_at,
             full_name: sub.full_name,
             email: sub.email,
