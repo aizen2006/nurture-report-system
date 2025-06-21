@@ -1,28 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
+
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  CheckCircle, 
-  AlertTriangle, 
-  Users, 
-  Shield, 
-  TrendingUp, 
-  Calendar,
-  Clock,
-  FileText,
-  Activity,
-  Download,
-  ExternalLink
-} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ComplianceOverview from './dashboard/ComplianceOverview';
 import StaffChildRatio from './dashboard/StaffChildRatio';
 import EnrollmentAttendance from './dashboard/EnrollmentAttendance';
 import AISuggestions from './dashboard/AISuggestions';
+import KeyMetrics from './dashboard/KeyMetrics';
+import ComplianceByRole from './dashboard/ComplianceByRole';
+import RecentActivity from './dashboard/RecentActivity';
+import AlertsIssues from './dashboard/AlertsIssues';
 
 // Type for the submission data structure
 interface SubmissionData {
@@ -315,154 +303,23 @@ const Dashboard = () => {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overall Compliance</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{complianceData.overall}%</div>
-            <Progress value={complianceData.overall} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
-            <FileText className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{submissions?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">Across all roles</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{alerts.length}</div>
-            <p className="text-xs text-muted-foreground">Requires attention</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Export Data</CardTitle>
-            <Download className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <Button 
-              onClick={downloadGoogleSheet}
-              disabled={isDownloading || !submissions || submissions.length === 0}
-              className="w-full text-sm"
-              size="sm"
-            >
-              {isDownloading ? (
-                <>
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Download className="h-3 w-3 mr-2" />
-                  Export Data
-                </>
-              )}
-            </Button>
-            {(!submissions || submissions.length === 0) && (
-              <p className="text-xs text-muted-foreground mt-1">No data available</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <KeyMetrics
+        overallCompliance={complianceData.overall}
+        totalSubmissions={submissions?.length || 0}
+        activeAlerts={alerts.length}
+        onDownload={downloadGoogleSheet}
+        isDownloading={isDownloading}
+        hasData={submissions && submissions.length > 0}
+      />
 
       {/* Compliance by Role */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Compliance by Role</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[
-              { role: 'Managers', percentage: complianceData.managers, icon: Users },
-              { role: 'Deputy Managers', percentage: complianceData.deputies, icon: Shield },
-              { role: 'Room Leaders', percentage: complianceData.roomLeaders, icon: Calendar },
-              { role: 'Area Managers', percentage: complianceData.areaManagers, icon: Activity }
-            ].map((item) => (
-              <div key={item.role} className="flex items-center space-x-4">
-                <item.icon className="h-5 w-5 text-gray-500" />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">{item.role}</span>
-                    <span className="text-sm text-gray-500">{item.percentage}%</span>
-                  </div>
-                  <Progress value={item.percentage} className="h-2" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <ComplianceByRole complianceData={complianceData} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentEntries.length > 0 ? recentEntries.map((entry, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <div>
-                      <p className="text-sm font-medium">{entry.role}</p>
-                      <p className="text-xs text-gray-500">{entry.location}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant="default">complete</Badge>
-                    <p className="text-xs text-gray-500 mt-1">{entry.time}</p>
-                  </div>
-                </div>
-              )) : (
-                <p className="text-sm text-gray-500">No recent submissions</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
+        <RecentActivity recentEntries={recentEntries} />
         {/* Alerts & Issues */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Alerts & Issues</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {alerts.length > 0 ? alerts.map((alert, index) => (
-                <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-gray-50">
-                  <AlertTriangle className={`h-4 w-4 mt-0.5 ${
-                    alert.severity === 'high' ? 'text-red-500' : 
-                    alert.severity === 'medium' ? 'text-yellow-500' : 'text-blue-500'
-                  }`} />
-                  <div className="flex-1">
-                    <p className="text-sm">{alert.message}</p>
-                    <Badge variant="outline" className="mt-1 text-xs">
-                      {alert.severity} priority
-                    </Badge>
-                  </div>
-                </div>
-              )) : (
-                <p className="text-sm text-gray-500">No active alerts</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <AlertsIssues alerts={alerts} />
       </div>
     </div>
   );
