@@ -14,7 +14,8 @@ import {
   FileText, 
   Download,
   Database,
-  ChevronDown
+  ChevronDown,
+  Calendar
 } from 'lucide-react';
 
 interface KeyMetricsProps {
@@ -23,6 +24,7 @@ interface KeyMetricsProps {
   onDownloadFormSubmissions: () => void;
   onDownloadStaffRatios: () => void;
   onDownloadEnrollmentAttendance: () => void;
+  onDownloadRoomPlanner: () => void;
   onDownloadAll: () => void;
   isDownloading: boolean;
   hasData: boolean;
@@ -34,6 +36,7 @@ const KeyMetrics = ({
   onDownloadFormSubmissions,
   onDownloadStaffRatios,
   onDownloadEnrollmentAttendance,
+  onDownloadRoomPlanner,
   onDownloadAll,
   isDownloading, 
   hasData 
@@ -113,6 +116,14 @@ const KeyMetrics = ({
               >
                 <Database className="h-4 w-4 mr-2" />
                 Enrollment & Attendance
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={onDownloadRoomPlanner}
+                disabled={isDownloading}
+                className="cursor-pointer hover:bg-gray-100"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Room Planner
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={onDownloadAll}

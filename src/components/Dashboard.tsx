@@ -31,7 +31,8 @@ const Dashboard = () => {
   const { 
     downloadFormSubmissions, 
     downloadStaffRatios, 
-    downloadEnrollmentAttendance, 
+    downloadEnrollmentAttendance,
+    downloadRoomPlanner,
     isDownloading: isDownloadingIndividual 
   } = useIndividualDownloads();
 
@@ -71,6 +72,7 @@ const Dashboard = () => {
         onDownloadFormSubmissions={downloadFormSubmissions}
         onDownloadStaffRatios={downloadStaffRatios}
         onDownloadEnrollmentAttendance={downloadEnrollmentAttendance}
+        onDownloadRoomPlanner={downloadRoomPlanner}
         onDownloadAll={downloadGoogleSheet}
         isDownloading={isDownloading}
         hasData={submissions && submissions.length > 0}

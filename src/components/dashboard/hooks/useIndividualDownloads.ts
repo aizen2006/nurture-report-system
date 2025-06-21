@@ -193,10 +193,95 @@ export const useIndividualDownloads = () => {
     }
   };
 
+  const downloadRoomPlanner = async () => {
+    setIsDownloading(true);
+    try {
+      console.log("Downloading room planner data...");
+      
+      const { data, error } = await supabase
+        .from('room_planner')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const formattedData = data.map((room, index) => ({
+          id: index + 1,
+          site: room.site,
+          room_name: room.room_name,
+          age_group: room.age_group,
+          ratio: room.ratio,
+          monday_children: room.monday_children,
+          tuesday_children: room.tuesday_children,
+          wednesday_children: room.wednesday_children,
+          thursday_children: room.thursday_children,
+          friday_children: room.friday_children,
+          monday_staff: room.monday_staff,
+          tuesday_staff: room.tuesday_staff,
+          wednesday_staff: room.wednesday_staff,
+          thursday_staff: room.thursday_staff,
+          friday_staff: room.friday_staff,
+          created_at: room.created_at,
+          updated_at: room.updated_at
+        }));
+
+        const headers = ['ID', 'Site', 'Room Name', 'Age Group', 'Ratio', 'Mon Children', 'Tue Children', 'Wed Children', 'Thu Children', 'Fri Children', 'Mon Staff', 'Tue Staff', 'Wed Staff', 'Thu Staff', 'Fri Staff', 'Created At', 'Updated At'];
+        const csvRows = [
+          headers.join(','),
+          ...formattedData.map(row => [
+            row.id,
+            `"${row.site}"`,
+            `"${row.room_name}"`,
+            `"${row.age_group}"`,
+            `"${row.ratio}"`,
+            row.monday_children,
+            row.tuesday_children,
+            row.wednesday_children,
+            row.thursday_children,
+            row.friday_children,
+            row.monday_staff,
+            row.tuesday_staff,
+            row.wednesday_staff,
+            row.thursday_staff,
+            row.friday_staff,
+            row.created_at,
+            row.updated_at
+          ].join(','))
+        ];
+
+        const csvContent = csvRows.join('\n');
+        const timestamp = new Date().toISOString().split('T')[0];
+        downloadCSV(csvContent, `room-planner-${timestamp}.csv`);
+        
+        toast({
+          title: "Download Complete",
+          description: `Downloaded ${data.length} room planner records`,
+        });
+      } else {
+        toast({
+          title: "No Data",
+          description: "No room planner data found to download",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Room planner download error:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to download room planner data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return {
     downloadFormSubmissions,
     downloadStaffRatios,
     downloadEnrollmentAttendance,
+    downloadRoomPlanner,
     isDownloading
   };
 };
