@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { 
   TrendingUp, 
   FileText, 
-  AlertTriangle,
-  Download
+  Download,
+  Database
 } from 'lucide-react';
 
 interface KeyMetricsProps {
@@ -22,13 +22,12 @@ interface KeyMetricsProps {
 const KeyMetrics = ({ 
   overallCompliance, 
   totalSubmissions, 
-  activeAlerts, 
   onDownload, 
   isDownloading, 
   hasData 
 }: KeyMetricsProps) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Overall Compliance</CardTitle>
@@ -53,18 +52,7 @@ const KeyMetrics = ({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-orange-600">{activeAlerts}</div>
-          <p className="text-xs text-muted-foreground">Requires attention</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Export Data</CardTitle>
+          <CardTitle className="text-sm font-medium">Export All Data</CardTitle>
           <Download className="h-4 w-4 text-purple-600" />
         </CardHeader>
         <CardContent>
@@ -81,14 +69,17 @@ const KeyMetrics = ({
               </>
             ) : (
               <>
-                <Download className="h-3 w-3 mr-2" />
-                Export Data
+                <Database className="h-3 w-3 mr-2" />
+                Export All Sheets
               </>
             )}
           </Button>
           {!hasData && (
             <p className="text-xs text-muted-foreground mt-1">No data available</p>
           )}
+          <p className="text-xs text-muted-foreground mt-1">
+            Includes: Forms, Ratios & Attendance
+          </p>
         </CardContent>
       </Card>
     </div>
