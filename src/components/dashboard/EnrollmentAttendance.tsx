@@ -7,10 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, TrendingUp, Calendar, Info } from 'lucide-react';
 import AttendanceCharts from './AttendanceCharts';
+import OccupancyChart from './OccupancyChart';
+import EnrollmentSummary from './EnrollmentSummary';
 import { parseSubmissionData } from './utils/dataProcessing';
 
 const EnrollmentAttendance = () => {
   const [selectedSite, setSelectedSite] = useState('all');
+  const [showCharts, setShowCharts] = useState(false);
 
   // Fetch enrollment data from database
   const { data: enrollmentData, isLoading: enrollmentLoading } = useQuery({
@@ -117,7 +120,47 @@ const EnrollmentAttendance = () => {
     }
   };
 
+  // Generate occupancy data for pie chart
+  const generateOccupancyData = () => {
+    if (enrollmentData && enrollmentData.length > 0) {
+      const siteData = selectedSite === 'all' 
+        ? enrollmentData[0] 
+        : enrollmentData.find(item => item.site === selectedSite) || enrollmentData[0];
+      
+      const currentOccupancy = siteData.children_present;
+      const plannedCapacity = siteData.planned_capacity || siteData.children_enrolled;
+      
+      return {
+        occupancyData: [
+          { name: 'Occupied', value: currentOccupancy, color: '#3b82f6' },
+          { name: 'Available', value: Math.max(0, plannedCapacity - currentOccupancy), color: '#93c5fd' }
+        ],
+        currentOccupancy,
+        plannedCapacity
+      };
+    } else {
+      // Fallback data from form submissions
+      const formData = processFormSubmissionData();
+      const siteInfo = selectedSite === 'all' 
+        ? formData.attendanceData[0] 
+        : formData.attendanceData.find((item: any) => item.site === selectedSite) || formData.attendanceData[0];
+      
+      const currentOccupancy = siteInfo ? siteInfo.monthlyEnrollment : 25;
+      const plannedCapacity = Math.round(currentOccupancy * 1.2); // 20% buffer
+      
+      return {
+        occupancyData: [
+          { name: 'Occupied', value: currentOccupancy, color: '#3b82f6' },
+          { name: 'Available', value: Math.max(0, plannedCapacity - currentOccupancy), color: '#93c5fd' }
+        ],
+        currentOccupancy,
+        plannedCapacity
+      };
+    }
+  };
+
   const { sites, staffData, childData } = generateChartData();
+  const { occupancyData, currentOccupancy, plannedCapacity } = generateOccupancyData();
   const formSubmissionData = processFormSubmissionData();
 
   // Filter data based on selected site
@@ -130,6 +173,14 @@ const EnrollmentAttendance = () => {
   const filteredChildData = getFilteredData(childData);
 
   const siteName = selectedSite === 'all' ? 'All Sites' : selectedSite;
+
+  // Calculate today's totals for summary
+  const todayTotals = {
+    staff: enrollmentData?.reduce((sum, item) => sum + item.staff_count, 0) || 
+           formSubmissionData.attendanceData.reduce((sum: number, item: any) => sum + Math.floor(item.monthlyEnrollment * 0.3), 0) || 15,
+    children: enrollmentData?.reduce((sum, item) => sum + item.children_present, 0) || 
+              formSubmissionData.attendanceData.reduce((sum: number, item: any) => sum + item.monthlyEnrollment, 0) || 85
+  };
 
   if (enrollmentLoading) {
     return (
@@ -172,6 +223,13 @@ const EnrollmentAttendance = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCharts(!showCharts)}
+            >
+              {showCharts ? 'Hide Charts' : 'View Charts'}
+            </Button>
           </div>
         </CardTitle>
       </CardHeader>
@@ -214,13 +272,33 @@ const EnrollmentAttendance = () => {
           </div>
         </div>
 
-        {/* Charts */}
-        <AttendanceCharts 
-          staffData={filteredStaffData}
-          childData={filteredChildData}
-          siteName={siteName}
-          selectedSite={selectedSite}
-        />
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Occupancy Chart */}
+          <OccupancyChart 
+            occupancyData={occupancyData}
+            currentOccupancy={currentOccupancy}
+            plannedCapacity={plannedCapacity}
+            siteName={siteName}
+          />
+
+          {/* Summary or Charts */}
+          {showCharts ? (
+            <div className="lg:col-span-2">
+              <AttendanceCharts 
+                staffData={filteredStaffData}
+                childData={filteredChildData}
+                siteName={siteName}
+                selectedSite={selectedSite}
+              />
+            </div>
+          ) : (
+            <EnrollmentSummary 
+              todayTotals={todayTotals}
+              siteName={siteName}
+            />
+          )}
+        </div>
 
         {/* Data Source Info */}
         <div className="text-xs text-gray-500 border-t pt-4">
