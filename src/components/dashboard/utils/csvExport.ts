@@ -1,23 +1,45 @@
 
 import { parseSubmissionData } from './dataProcessing';
+import { formatSubmissionDataAsText, generateAISuggestionsText } from './textFormatting';
 
 // Create CSV content from data array
 export const createCSVFromData = (data: any[]) => {
   if (!data || data.length === 0) return '';
   
-  const headers = ['ID', 'Timestamp', 'Full Name', 'Email', 'Role', 'Nursery', 'Total Questions', 'Answered Questions', 'Compliance Rate'];
+  const headers = ['ID', 'Timestamp', 'Full Name', 'Email', 'Role', 'Nursery', 'Total Questions', 'Answered Questions', 'Compliance Rate', 'Response Summary'];
   const csvRows = [
     headers.join(','),
     ...data.map(row => [
       row.id,
       row.timestamp,
-      `"${row.full_name}"`,
-      row.email,
-      `"${row.role}"`,
-      `"${row.nursery_name}"`,
-      row.total_questions,
-      row.answered_questions,
-      `${row.compliance_rate}%`
+      `"${row.full_name || ''}"`,
+      `"${row.email || ''}"`,
+      `"${row.role || ''}"`,
+      `"${row.nursery_name || ''}"`,
+      row.total_questions || 0,
+      row.answered_questions || 0,
+      `${row.compliance_rate || 0}%`,
+      `"${row.response_summary || ''}"`
+    ].join(','))
+  ];
+  
+  return csvRows.join('\n');
+};
+
+// Create AI Suggestions CSV
+export const createAISuggestionsCSV = (submissions: any[]) => {
+  const suggestions = generateAISuggestionsText(submissions);
+  
+  const headers = ['Priority', 'Suggestion', 'Timestamp'];
+  const csvRows = [
+    headers.join(','),
+    ...suggestions.map((suggestion, index) => [
+      `"${suggestion.includes('HIGH PRIORITY') ? 'High'
+        : suggestion.includes('MEDIUM PRIORITY') ? 'Medium'
+        : suggestion.includes('URGENT') ? 'Urgent'
+        : 'Low'}"`,
+      `"${suggestion}"`,
+      `"${new Date().toISOString()}"`
     ].join(','))
   ];
   
@@ -38,22 +60,7 @@ export const downloadCSV = (csvContent: string, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
-// Format submissions data for CSV export
+// Format submissions data for CSV export with enhanced text format
 export const formatSubmissionsForCSV = (submissions: any[]) => {
-  return submissions.map((sub, index) => {
-    const parsedData = parseSubmissionData(sub.submission_data);
-    return {
-      id: index + 1, // Use index as ID since there's no actual ID field
-      timestamp: sub.submitted_at,
-      full_name: sub.full_name,
-      email: sub.email,
-      role: sub.role,
-      nursery_name: parsedData.nursery_name || '',
-      total_questions: parsedData.total_questions || 0,
-      answered_questions: parsedData.answered_questions || 0,
-      compliance_rate: parsedData.total_questions > 0 
-        ? Math.round((parsedData.answered_questions / parsedData.total_questions) * 100) 
-        : 0
-    };
-  });
+  return formatSubmissionDataAsText(submissions);
 };
