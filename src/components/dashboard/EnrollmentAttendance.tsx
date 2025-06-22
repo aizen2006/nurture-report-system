@@ -56,6 +56,7 @@ const EnrollmentAttendance = () => {
 
   // Filter data by date range
   const filterDataByDateRange = (data: any[]) => {
+    if (!data) return [];
     const { start, end } = getDateRange();
     return data.filter(item => {
       const itemDate = new Date(item.date);
@@ -86,13 +87,31 @@ const EnrollmentAttendance = () => {
 
   // Get current occupancy data based on selected site and date range
   const getCurrentOccupancyData = () => {
-    if (!enrollmentData || enrollmentData.length === 0) return { occupancyData: [], currentOccupancy: 0, plannedCapacity: 0 };
+    if (!enrollmentData || enrollmentData.length === 0) {
+      return { 
+        occupancyData: [
+          { name: 'Occupied', value: 0, color: '#3b82f6' },
+          { name: 'Available', value: 0, color: '#93c5fd' }
+        ], 
+        currentOccupancy: 0, 
+        plannedCapacity: 0 
+      };
+    }
 
     const filteredData = filterDataByDateRange(enrollmentData);
     
     if (selectedSite === 'all') {
       // Get the most recent date's data from filtered range
-      if (filteredData.length === 0) return { occupancyData: [], currentOccupancy: 0, plannedCapacity: 0 };
+      if (filteredData.length === 0) {
+        return { 
+          occupancyData: [
+            { name: 'Occupied', value: 0, color: '#3b82f6' },
+            { name: 'Available', value: 0, color: '#93c5fd' }
+          ], 
+          currentOccupancy: 0, 
+          plannedCapacity: 0 
+        };
+      }
       
       const mostRecentDate = filteredData.reduce((latest, item) => {
         return new Date(item.date) > new Date(latest) ? item.date : latest;

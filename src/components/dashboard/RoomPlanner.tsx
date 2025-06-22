@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronRight, Info } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const RoomPlanner = () => {
   const [selectedSite, setSelectedSite] = useState('all');
@@ -32,11 +33,11 @@ const RoomPlanner = () => {
   ];
 
   const weekDays = [
-    { day: 'Mon', date: '29 Jul', status: 'complete' },
-    { day: 'Tue', date: '30 Jul', status: 'complete' },
-    { day: 'Wed', date: '31 Jul', status: 'complete' },
-    { day: 'Thu', date: '1 Aug', status: 'complete' },
-    { day: 'Fri', date: '2 Aug', status: 'complete' }
+    { day: 'Mon', date: '29 Jul' },
+    { day: 'Tue', date: '30 Jul' },
+    { day: 'Wed', date: '31 Jul' },
+    { day: 'Thu', date: '1 Aug' },
+    { day: 'Fri', date: '2 Aug' }
   ];
 
   const getFilteredRooms = () => {
@@ -45,6 +46,7 @@ const RoomPlanner = () => {
     if (selectedSite === 'all') {
       return roomPlannerData.map(room => ({
         name: `${room.site} - ${room.room_name}`,
+        ageGroup: room.age_group,
         totalChildren: [room.monday_children, room.tuesday_children, room.wednesday_children, room.thursday_children, room.friday_children],
         staffRequired: [room.monday_staff, room.tuesday_staff, room.wednesday_staff, room.thursday_staff, room.friday_staff],
         ratio: room.ratio
@@ -55,6 +57,7 @@ const RoomPlanner = () => {
         .filter(room => room.site === selectedSiteName)
         .map(room => ({
           name: `${room.site} - ${room.room_name}`,
+          ageGroup: room.age_group,
           totalChildren: [room.monday_children, room.tuesday_children, room.wednesday_children, room.thursday_children, room.friday_children],
           staffRequired: [room.monday_staff, room.tuesday_staff, room.wednesday_staff, room.thursday_staff, room.friday_staff],
           ratio: room.ratio
@@ -87,9 +90,22 @@ const RoomPlanner = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <span>Room planner</span>
-            <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
-              <Info className="h-4 w-4" />
-            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+                  <Info className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Room Planner Information</DialogTitle>
+                  <DialogDescription>
+                    The Room Planner shows the planned staffing and child capacity for each room across the week. 
+                    It helps you visualize staffing requirements and ensure proper staff-to-child ratios are maintained.
+                  </DialogDescription>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -110,9 +126,22 @@ const RoomPlanner = () => {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span>Room planner</span>
-            <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
-              <Info className="h-4 w-4" />
-            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+                  <Info className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Room Planner Information</DialogTitle>
+                  <DialogDescription>
+                    The Room Planner shows the planned staffing and child capacity for each room across the week. 
+                    It helps you visualize staffing requirements and ensure proper staff-to-child ratios are maintained.
+                  </DialogDescription>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
           </div>
           <Select value={selectedSite} onValueChange={setSelectedSite}>
             <SelectTrigger className="w-32">
@@ -143,9 +172,6 @@ const RoomPlanner = () => {
                 <div key={index} className="text-center">
                   <div className="font-medium">{day.day}</div>
                   <div className="text-gray-500 text-xs">{day.date}</div>
-                  <div className="mt-2 h-12 bg-green-500 rounded flex items-center justify-center text-white text-xs">
-                    08:00<br/>18:00
-                  </div>
                 </div>
               ))}
             </div>
@@ -156,6 +182,7 @@ const RoomPlanner = () => {
                 <div className="flex items-center gap-2 font-medium">
                   <ChevronRight className="h-4 w-4" />
                   {room.name}
+                  <span className="text-xs text-gray-500">({room.ageGroup})</span>
                 </div>
                 
                 <div className="grid grid-cols-6 gap-2 pl-6">
@@ -187,9 +214,22 @@ const RoomPlanner = () => {
               <div className="grid grid-cols-6 gap-2">
                 <div className="text-sm text-gray-600 flex items-center gap-1">
                   Total Children
-                  <Button variant="ghost" size="sm" className="p-0 h-4 w-4">
-                    <Info className="h-3 w-3 text-blue-500" />
-                  </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="p-0 h-4 w-4">
+                        <Info className="h-3 w-3 text-blue-500" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Total Children Information</DialogTitle>
+                        <DialogDescription>
+                          This shows the total number of children across all rooms for each day of the week.
+                          The numbers help you understand daily capacity requirements.
+                        </DialogDescription>
+                      </DialogHeader>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 {summary.totalChildren.map((count, dayIndex) => (
                   <div key={dayIndex} className="text-center text-sm font-medium">
