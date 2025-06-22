@@ -9,7 +9,7 @@ import AISuggestions from './dashboard/AISuggestions';
 import KeyMetrics from './dashboard/KeyMetrics';
 import RecentActivity from './dashboard/RecentActivity';
 import RoomPlanner from './dashboard/RoomPlanner';
-import { calculateComplianceData, getRecentEntries } from './dashboard/utils/dataProcessing';
+import { getRecentEntries } from './dashboard/utils/dataProcessing';
 import { useGoogleSheetsDownload } from './dashboard/hooks/useGoogleSheetsDownload';
 import { useIndividualDownloads } from './dashboard/hooks/useIndividualDownloads';
 
@@ -47,7 +47,6 @@ const Dashboard = () => {
     );
   }
 
-  const complianceData = calculateComplianceData(submissions || []);
   const recentEntries = getRecentEntries(submissions || []);
   const isDownloading = isDownloadingAll || isDownloadingIndividual;
 
@@ -67,7 +66,6 @@ const Dashboard = () => {
 
       {/* Key Metrics */}
       <KeyMetrics
-        overallCompliance={complianceData.overall}
         totalSubmissions={submissions?.length || 0}
         onDownloadFormSubmissions={downloadFormSubmissions}
         onDownloadStaffRatios={downloadStaffRatios}

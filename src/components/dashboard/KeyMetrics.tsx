@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { 
-  TrendingUp, 
   FileText, 
   Download,
   Database,
@@ -19,7 +18,6 @@ import {
 } from 'lucide-react';
 
 interface KeyMetricsProps {
-  overallCompliance: number;
   totalSubmissions: number;
   onDownloadFormSubmissions: () => void;
   onDownloadStaffRatios: () => void;
@@ -31,7 +29,6 @@ interface KeyMetricsProps {
 }
 
 const KeyMetrics = ({ 
-  overallCompliance, 
   totalSubmissions, 
   onDownloadFormSubmissions,
   onDownloadStaffRatios,
@@ -42,18 +39,7 @@ const KeyMetrics = ({
   hasData 
 }: KeyMetricsProps) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Overall Compliance</CardTitle>
-          <TrendingUp className="h-4 w-4 text-green-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600">{overallCompliance}%</div>
-          <Progress value={overallCompliance} className="mt-2" />
-        </CardContent>
-      </Card>
-
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
