@@ -1,12 +1,19 @@
 
 export const generateOccupancyData = (enrollmentData: any[], formSubmissionData: any, selectedSite: string) => {
   if (enrollmentData && enrollmentData.length > 0) {
-    const siteData = selectedSite === 'all' 
-      ? enrollmentData[0] 
-      : enrollmentData.find(item => item.site === selectedSite) || enrollmentData[0];
+    let currentOccupancy = 0;
+    let plannedCapacity = 0;
     
-    const currentOccupancy = siteData.children_present;
-    const plannedCapacity = siteData.planned_capacity || siteData.children_enrolled;
+    if (selectedSite === 'all') {
+      // Sum all sites data
+      currentOccupancy = enrollmentData.reduce((sum, item) => sum + item.children_present, 0);
+      plannedCapacity = enrollmentData.reduce((sum, item) => sum + (item.planned_capacity || item.children_enrolled), 0);
+    } else {
+      // Get specific site data
+      const siteData = enrollmentData.find(item => item.site === selectedSite) || enrollmentData[0];
+      currentOccupancy = siteData.children_present;
+      plannedCapacity = siteData.planned_capacity || siteData.children_enrolled;
+    }
     
     return {
       occupancyData: [
@@ -18,12 +25,17 @@ export const generateOccupancyData = (enrollmentData: any[], formSubmissionData:
     };
   } else {
     // Fallback data from form submissions
-    const siteInfo = selectedSite === 'all' 
-      ? formSubmissionData.attendanceData[0] 
-      : formSubmissionData.attendanceData.find((item: any) => item.site === selectedSite) || formSubmissionData.attendanceData[0];
+    let currentOccupancy = 0;
+    let plannedCapacity = 0;
     
-    const currentOccupancy = siteInfo ? siteInfo.monthlyEnrollment : 25;
-    const plannedCapacity = Math.round(currentOccupancy * 1.2); // 20% buffer
+    if (selectedSite === 'all') {
+      currentOccupancy = formSubmissionData.attendanceData.reduce((sum: number, item: any) => sum + item.monthlyEnrollment, 0);
+      plannedCapacity = Math.round(currentOccupancy * 1.2); // 20% buffer
+    } else {
+      const siteInfo = formSubmissionData.attendanceData.find((item: any) => item.site === selectedSite) || formSubmissionData.attendanceData[0];
+      currentOccupancy = siteInfo ? siteInfo.monthlyEnrollment : 25;
+      plannedCapacity = Math.round(currentOccupancy * 1.2); // 20% buffer
+    }
     
     return {
       occupancyData: [

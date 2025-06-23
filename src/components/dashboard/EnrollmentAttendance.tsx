@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Info } from 'lucide-react';
+import { Info, X } from 'lucide-react';
 import AttendanceCharts from './AttendanceCharts';
 import OccupancyChart from './OccupancyChart';
 import EnrollmentSummary from './EnrollmentSummary';
@@ -16,6 +16,7 @@ import { generateOccupancyData } from './enrollment/OccupancyDataProcessor';
 const EnrollmentAttendance = () => {
   const [selectedSite, setSelectedSite] = useState('all');
   const [showCharts, setShowCharts] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   // Fetch enrollment data from database
   const { data: enrollmentData, isLoading: enrollmentLoading } = useQuery({
@@ -95,13 +96,18 @@ const EnrollmentAttendance = () => {
   };
 
   return (
-    <Card>
+    <Card className="relative">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-blue-500 rounded"></div>
             Enrollment & Attendance
-            <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="p-1 h-6 w-6"
+              onClick={() => setShowInfo(!showInfo)}
+            >
               <Info className="h-4 w-4" />
             </Button>
           </div>
@@ -128,6 +134,22 @@ const EnrollmentAttendance = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        {showInfo && (
+          <div className="absolute top-2 right-2 bg-white border rounded-lg p-4 shadow-lg z-10 max-w-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-sm">Enrollment & Attendance</h4>
+              <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={() => setShowInfo(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-gray-600">
+              This section displays enrollment and attendance data including current occupancy vs planned capacity, 
+              attendance trends, and daily totals. Data is pulled from the enrollment_attendance database table 
+              when available, with fallback to form submission data.
+            </p>
+          </div>
+        )}
+
         {/* Summary Cards */}
         <EnrollmentSummaryCards 
           totalEnrolled={totalEnrolled}

@@ -1,11 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, AlertTriangle, XCircle, Info } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { parseSubmissionData } from './utils/dataProcessing';
 
@@ -18,6 +18,8 @@ interface ComplianceItem {
 }
 
 const ComplianceOverview = () => {
+  const [showInfo, setShowInfo] = useState(false);
+
   const { data: submissions, isLoading, error } = useQuery({
     queryKey: ['form_submissions_compliance'],
     queryFn: async () => {
@@ -47,25 +49,39 @@ const ComplianceOverview = () => {
     }
 
     try {
-      const fireSafety = submissions.filter(sub => {
+      // Count submissions with positive compliance indicators
+      const complianceChecks = submissions.reduce((acc, sub) => {
         const data = parseSubmissionData(sub.submission_data);
-        return data.responses?.fire_safety_check === 'yes';
-      });
-
-      const firstAid = submissions.filter(sub => {
-        const data = parseSubmissionData(sub.submission_data);
-        return data.responses?.first_aid_certified === 'yes';
-      });
-
-      const staffTraining = submissions.filter(sub => {
-        const data = parseSubmissionData(sub.submission_data);
-        return data.responses?.staff_training_complete === 'yes';
-      });
-
-      const safeguarding = submissions.filter(sub => {
-        const data = parseSubmissionData(sub.submission_data);
-        return data.responses?.safeguarding_concerns === 'no';
-      });
+        const responses = data.responses || {};
+        
+        // Check various compliance fields that might exist in responses
+        if (responses.fire_safety_check === 'yes' || 
+            responses.fire_safety === 'completed' ||
+            responses.safety_check === 'yes') {
+          acc.fireSafety++;
+        }
+        
+        if (responses.first_aid_certified === 'yes' || 
+            responses.first_aid_training === 'completed' ||
+            responses.first_aid === 'yes') {
+          acc.firstAid++;
+        }
+        
+        if (responses.staff_training_complete === 'yes' || 
+            responses.training_completed === 'yes' ||
+            responses.staff_training === 'completed') {
+          acc.staffTraining++;
+        }
+        
+        if (responses.safeguarding_concerns === 'no' || 
+            responses.safeguarding_training === 'completed' ||
+            responses.safeguarding_check === 'yes') {
+          acc.safeguarding++;
+        }
+        
+        acc.total++;
+        return acc;
+      }, { fireSafety: 0, firstAid: 0, staffTraining: 0, safeguarding: 0, total: 0 });
 
       const getStatus = (compliant: number, total: number): 'compliant' | 'pending' | 'non-compliant' => {
         if (total === 0) return 'pending';
@@ -78,27 +94,27 @@ const ComplianceOverview = () => {
       return [
         { 
           name: 'Fire Safety', 
-          status: getStatus(fireSafety.length, submissions.length),
-          count: fireSafety.length,
-          total: submissions.length
+          status: getStatus(complianceChecks.fireSafety, complianceChecks.total),
+          count: complianceChecks.fireSafety,
+          total: complianceChecks.total
         },
         { 
           name: 'First Aid', 
-          status: getStatus(firstAid.length, submissions.length),
-          count: firstAid.length,
-          total: submissions.length
+          status: getStatus(complianceChecks.firstAid, complianceChecks.total),
+          count: complianceChecks.firstAid,
+          total: complianceChecks.total
         },
         { 
           name: 'Staff Training', 
-          status: getStatus(staffTraining.length, submissions.length),
-          count: staffTraining.length,
-          total: submissions.length
+          status: getStatus(complianceChecks.staffTraining, complianceChecks.total),
+          count: complianceChecks.staffTraining,
+          total: complianceChecks.total
         },
         { 
           name: 'Safeguarding', 
-          status: getStatus(safeguarding.length, submissions.length),
-          count: safeguarding.length,
-          total: submissions.length
+          status: getStatus(complianceChecks.safeguarding, complianceChecks.total),
+          count: complianceChecks.safeguarding,
+          total: complianceChecks.total
         }
       ];
     } catch (error) {
@@ -145,7 +161,12 @@ const ComplianceOverview = () => {
           <CardTitle className="flex items-center gap-2">
             <div className="w-3 h-3 bg-red-500 rounded"></div>
             Compliance Overview
-            <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="p-1 h-6 w-6"
+              onClick={() => setShowInfo(!showInfo)}
+            >
               <Info className="h-4 w-4" />
             </Button>
           </CardTitle>
@@ -168,7 +189,12 @@ const ComplianceOverview = () => {
           <CardTitle className="flex items-center gap-2">
             <div className="w-3 h-3 bg-green-500 rounded"></div>
             Compliance Overview
-            <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="p-1 h-6 w-6"
+              onClick={() => setShowInfo(!showInfo)}
+            >
               <Info className="h-4 w-4" />
             </Button>
           </CardTitle>
@@ -189,17 +215,38 @@ const ComplianceOverview = () => {
     : 0;
 
   return (
-    <Card>
+    <Card className="relative">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <div className="w-3 h-3 bg-green-500 rounded"></div>
           Compliance Overview
-          <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="p-1 h-6 w-6"
+            onClick={() => setShowInfo(!showInfo)}
+          >
             <Info className="h-4 w-4" />
           </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {showInfo && (
+          <div className="absolute top-2 right-2 bg-white border rounded-lg p-4 shadow-lg z-10 max-w-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-sm">Compliance Overview</h4>
+              <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={() => setShowInfo(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-gray-600">
+              This section tracks compliance across key areas including fire safety, first aid certification, 
+              staff training completion, and safeguarding protocols. Data is based on form submissions and 
+              calculated as a percentage of completed requirements.
+            </p>
+          </div>
+        )}
+        
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Overall Compliance</span>
           <span className="text-2xl font-bold text-green-600">{overallCompliance}%</span>
