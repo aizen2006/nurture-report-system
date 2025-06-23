@@ -5,11 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, TrendingUp, Calendar, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import AttendanceCharts from './AttendanceCharts';
 import OccupancyChart from './OccupancyChart';
 import EnrollmentSummary from './EnrollmentSummary';
-import { parseSubmissionData } from './utils/dataProcessing';
+import EnrollmentSummaryCards from './enrollment/EnrollmentSummaryCards';
+import { processEnrollmentData } from './enrollment/EnrollmentDataProcessor';
+import { generateOccupancyData } from './enrollment/OccupancyDataProcessor';
 
 const EnrollmentAttendance = () => {
   const [selectedSite, setSelectedSite] = useState('all');
@@ -43,145 +45,6 @@ const EnrollmentAttendance = () => {
     }
   });
 
-  // Process form submissions for attendance trends
-  const processFormSubmissionData = () => {
-    if (!submissions) return { sites: [], attendanceData: [] };
-
-    const siteData: Record<string, any> = {};
-    
-    submissions.forEach(sub => {
-      const data = parseSubmissionData(sub.submission_data);
-      const siteName = data.nursery_name || 'Unknown';
-      const responses = data.responses || {};
-      
-      if (!siteData[siteName]) {
-        siteData[siteName] = {
-          site: siteName,
-          weeklyAttendance: responses.weekly_attendance || '0%',
-          monthlyEnrollment: parseInt(responses.monthly_enrollment || '0'),
-          trend: responses.attendance_trend || 'stable'
-        };
-      }
-    });
-
-    return {
-      sites: Object.keys(siteData),
-      attendanceData: Object.values(siteData)
-    };
-  };
-
-  // Generate chart data combining database and form submission data
-  const generateChartData = () => {
-    const formData = processFormSubmissionData();
-    
-    // Use enrollment_attendance data if available, otherwise use form data
-    if (enrollmentData && enrollmentData.length > 0) {
-      const sites = [...new Set(enrollmentData.map(item => item.site))];
-      
-      // Generate staff attendance data
-      const staffData = enrollmentData.map((item, index) => ({
-        day: `Day ${index + 1}`,
-        attendance: item.staff_attendance_rate,
-        site: item.site,
-        [item.site]: item.staff_attendance_rate
-      }));
-
-      // Generate children attendance data
-      const childData = enrollmentData.map((item, index) => ({
-        day: `Day ${index + 1}`,
-        attendance: item.occupancy_rate,
-        site: item.site,
-        [item.site]: item.occupancy_rate
-      }));
-
-      return { sites, staffData, childData };
-    } else {
-      // Fallback to form submission data
-      const sites = formData.sites;
-      const mockDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-      
-      const staffData = mockDays.map(day => {
-        const dayData: any = { day };
-        sites.forEach(site => {
-          dayData[site] = Math.floor(Math.random() * 20) + 80; // 80-100%
-        });
-        return dayData;
-      });
-
-      const childData = mockDays.map(day => {
-        const dayData: any = { day };
-        sites.forEach(site => {
-          dayData[site] = Math.floor(Math.random() * 30) + 70; // 70-100%
-        });
-        return dayData;
-      });
-
-      return { sites, staffData, childData };
-    }
-  };
-
-  // Generate occupancy data for pie chart
-  const generateOccupancyData = () => {
-    if (enrollmentData && enrollmentData.length > 0) {
-      const siteData = selectedSite === 'all' 
-        ? enrollmentData[0] 
-        : enrollmentData.find(item => item.site === selectedSite) || enrollmentData[0];
-      
-      const currentOccupancy = siteData.children_present;
-      const plannedCapacity = siteData.planned_capacity || siteData.children_enrolled;
-      
-      return {
-        occupancyData: [
-          { name: 'Occupied', value: currentOccupancy, color: '#3b82f6' },
-          { name: 'Available', value: Math.max(0, plannedCapacity - currentOccupancy), color: '#93c5fd' }
-        ],
-        currentOccupancy,
-        plannedCapacity
-      };
-    } else {
-      // Fallback data from form submissions
-      const formData = processFormSubmissionData();
-      const siteInfo = selectedSite === 'all' 
-        ? formData.attendanceData[0] 
-        : formData.attendanceData.find((item: any) => item.site === selectedSite) || formData.attendanceData[0];
-      
-      const currentOccupancy = siteInfo ? siteInfo.monthlyEnrollment : 25;
-      const plannedCapacity = Math.round(currentOccupancy * 1.2); // 20% buffer
-      
-      return {
-        occupancyData: [
-          { name: 'Occupied', value: currentOccupancy, color: '#3b82f6' },
-          { name: 'Available', value: Math.max(0, plannedCapacity - currentOccupancy), color: '#93c5fd' }
-        ],
-        currentOccupancy,
-        plannedCapacity
-      };
-    }
-  };
-
-  const { sites, staffData, childData } = generateChartData();
-  const { occupancyData, currentOccupancy, plannedCapacity } = generateOccupancyData();
-  const formSubmissionData = processFormSubmissionData();
-
-  // Filter data based on selected site
-  const getFilteredData = (data: any[]) => {
-    if (selectedSite === 'all') return data;
-    return data.filter(item => item.site === selectedSite || item[selectedSite] !== undefined);
-  };
-
-  const filteredStaffData = getFilteredData(staffData);
-  const filteredChildData = getFilteredData(childData);
-
-  const siteName = selectedSite === 'all' ? 'All Sites' : selectedSite;
-
-  // Calculate today's totals for summary
-  const todayTotals = {
-    staff: enrollmentData?.reduce((sum, item) => sum + item.staff_count, 0) || 
-           formSubmissionData.attendanceData.reduce((sum: number, item: any) => sum + Math.floor(item.monthlyEnrollment * 0.3), 0) || 15,
-    children: enrollmentData?.reduce((sum, item) => sum + item.children_present, 0) || 
-              formSubmissionData.attendanceData.reduce((sum: number, item: any) => sum + item.monthlyEnrollment, 0) || 85
-  };
-
   if (enrollmentLoading) {
     return (
       <Card>
@@ -199,6 +62,37 @@ const EnrollmentAttendance = () => {
       </Card>
     );
   }
+
+  const { processFormSubmissionData, generateChartData } = processEnrollmentData(enrollmentData || [], submissions || []);
+  const { sites, staffData, childData } = generateChartData();
+  const formSubmissionData = processFormSubmissionData();
+  const { occupancyData, currentOccupancy, plannedCapacity } = generateOccupancyData(enrollmentData || [], formSubmissionData, selectedSite);
+
+  // Filter data based on selected site
+  const getFilteredData = (data: any[]) => {
+    if (selectedSite === 'all') return data;
+    return data.filter(item => item.site === selectedSite || item[selectedSite] !== undefined);
+  };
+
+  const filteredStaffData = getFilteredData(staffData);
+  const filteredChildData = getFilteredData(childData);
+  const siteName = selectedSite === 'all' ? 'All Sites' : selectedSite;
+
+  // Calculate summary data
+  const totalEnrolled = enrollmentData?.reduce((sum, item) => sum + item.children_enrolled, 0) || 
+                       formSubmissionData.attendanceData.reduce((sum: number, item: any) => sum + item.monthlyEnrollment, 0) || 0;
+  
+  const avgAttendance = enrollmentData?.length > 0 
+    ? Math.round(enrollmentData.reduce((sum, item) => sum + item.occupancy_rate, 0) / enrollmentData.length)
+    : Math.round(formSubmissionData.attendanceData.reduce((sum: number, item: any) => 
+        sum + parseInt(item.weeklyAttendance.replace('%', '')), 0) / Math.max(formSubmissionData.attendanceData.length, 1));
+
+  const todayTotals = {
+    staff: enrollmentData?.reduce((sum, item) => sum + item.staff_count, 0) || 
+           formSubmissionData.attendanceData.reduce((sum: number, item: any) => sum + Math.floor(item.monthlyEnrollment * 0.3), 0) || 15,
+    children: enrollmentData?.reduce((sum, item) => sum + item.children_present, 0) || 
+              formSubmissionData.attendanceData.reduce((sum: number, item: any) => sum + item.monthlyEnrollment, 0) || 85
+  };
 
   return (
     <Card>
@@ -235,42 +129,11 @@ const EnrollmentAttendance = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              <span className="font-medium text-blue-900">Total Enrolled</span>
-            </div>
-            <div className="text-2xl font-bold text-blue-700 mt-1">
-              {enrollmentData?.reduce((sum, item) => sum + item.children_enrolled, 0) || 
-               formSubmissionData.attendanceData.reduce((sum: number, item: any) => sum + item.monthlyEnrollment, 0) || 0}
-            </div>
-          </div>
-          
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-              <span className="font-medium text-green-900">Avg Attendance</span>
-            </div>
-            <div className="text-2xl font-bold text-green-700 mt-1">
-              {enrollmentData?.length > 0 
-                ? Math.round(enrollmentData.reduce((sum, item) => sum + item.occupancy_rate, 0) / enrollmentData.length)
-                : Math.round(formSubmissionData.attendanceData.reduce((sum: number, item: any) => 
-                    sum + parseInt(item.weeklyAttendance.replace('%', '')), 0) / Math.max(formSubmissionData.attendanceData.length, 1))
-              }%
-            </div>
-          </div>
-          
-          <div className="bg-orange-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-orange-600" />
-              <span className="font-medium text-orange-900">Sites Active</span>
-            </div>
-            <div className="text-2xl font-bold text-orange-700 mt-1">
-              {sites.length}
-            </div>
-          </div>
-        </div>
+        <EnrollmentSummaryCards 
+          totalEnrolled={totalEnrolled}
+          avgAttendance={avgAttendance}
+          activeSites={sites.length}
+        />
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, AlertTriangle, XCircle, Clock, Info } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { parseSubmissionData } from './utils/dataProcessing';
 
@@ -18,7 +18,7 @@ interface ComplianceItem {
 }
 
 const ComplianceOverview = () => {
-  const { data: submissions, isLoading } = useQuery({
+  const { data: submissions, isLoading, error } = useQuery({
     queryKey: ['form_submissions_compliance'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -26,9 +26,14 @@ const ComplianceOverview = () => {
         .select('*')
         .order('submitted_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching compliance data:', error);
+        throw error;
+      }
       return data;
-    }
+    },
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
 
   const calculateComplianceItems = (): ComplianceItem[] => {
@@ -41,59 +46,70 @@ const ComplianceOverview = () => {
       ];
     }
 
-    const fireSafety = submissions.filter(sub => {
-      const data = parseSubmissionData(sub.submission_data);
-      return data.responses?.fire_safety_check === 'yes';
-    });
+    try {
+      const fireSafety = submissions.filter(sub => {
+        const data = parseSubmissionData(sub.submission_data);
+        return data.responses?.fire_safety_check === 'yes';
+      });
 
-    const firstAid = submissions.filter(sub => {
-      const data = parseSubmissionData(sub.submission_data);
-      return data.responses?.first_aid_certified === 'yes';
-    });
+      const firstAid = submissions.filter(sub => {
+        const data = parseSubmissionData(sub.submission_data);
+        return data.responses?.first_aid_certified === 'yes';
+      });
 
-    const staffTraining = submissions.filter(sub => {
-      const data = parseSubmissionData(sub.submission_data);
-      return data.responses?.staff_training_complete === 'yes';
-    });
+      const staffTraining = submissions.filter(sub => {
+        const data = parseSubmissionData(sub.submission_data);
+        return data.responses?.staff_training_complete === 'yes';
+      });
 
-    const safeguarding = submissions.filter(sub => {
-      const data = parseSubmissionData(sub.submission_data);
-      return data.responses?.safeguarding_concerns === 'no';
-    });
+      const safeguarding = submissions.filter(sub => {
+        const data = parseSubmissionData(sub.submission_data);
+        return data.responses?.safeguarding_concerns === 'no';
+      });
 
-    const getStatus = (compliant: number, total: number): 'compliant' | 'pending' | 'non-compliant' => {
-      const percentage = (compliant / total) * 100;
-      if (percentage >= 80) return 'compliant';
-      if (percentage >= 50) return 'pending';
-      return 'non-compliant';
-    };
+      const getStatus = (compliant: number, total: number): 'compliant' | 'pending' | 'non-compliant' => {
+        if (total === 0) return 'pending';
+        const percentage = (compliant / total) * 100;
+        if (percentage >= 80) return 'compliant';
+        if (percentage >= 50) return 'pending';
+        return 'non-compliant';
+      };
 
-    return [
-      { 
-        name: 'Fire Safety', 
-        status: getStatus(fireSafety.length, submissions.length),
-        count: fireSafety.length,
-        total: submissions.length
-      },
-      { 
-        name: 'First Aid', 
-        status: getStatus(firstAid.length, submissions.length),
-        count: firstAid.length,
-        total: submissions.length
-      },
-      { 
-        name: 'Staff Training', 
-        status: getStatus(staffTraining.length, submissions.length),
-        count: staffTraining.length,
-        total: submissions.length
-      },
-      { 
-        name: 'Safeguarding', 
-        status: getStatus(safeguarding.length, submissions.length),
-        count: safeguarding.length,
-        total: submissions.length
-      }
-    ];
+      return [
+        { 
+          name: 'Fire Safety', 
+          status: getStatus(fireSafety.length, submissions.length),
+          count: fireSafety.length,
+          total: submissions.length
+        },
+        { 
+          name: 'First Aid', 
+          status: getStatus(firstAid.length, submissions.length),
+          count: firstAid.length,
+          total: submissions.length
+        },
+        { 
+          name: 'Staff Training', 
+          status: getStatus(staffTraining.length, submissions.length),
+          count: staffTraining.length,
+          total: submissions.length
+        },
+        { 
+          name: 'Safeguarding', 
+          status: getStatus(safeguarding.length, submissions.length),
+          count: safeguarding.length,
+          total: submissions.length
+        }
+      ];
+    } catch (error) {
+      console.error('Error calculating compliance items:', error);
+      return [
+        { name: 'Fire Safety', status: 'pending' },
+        { name: 'First Aid', status: 'pending' },
+        { name: 'Staff Training', status: 'pending' },
+        { name: 'Safeguarding', status: 'pending' }
+      ];
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -118,9 +134,32 @@ const ComplianceOverview = () => {
       case 'non-compliant':
         return <Badge className="bg-red-100 text-red-800">Non-Compliant</Badge>;
       default:
-        return null;
+        return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
     }
   };
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-red-500 rounded"></div>
+            Compliance Overview
+            <Button variant="ghost" size="sm" className="p-1 h-6 w-6">
+              <Info className="h-4 w-4" />
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center p-8">
+            <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+            <p className="text-red-600">Failed to load compliance data</p>
+            <p className="text-sm text-gray-500 mt-1">Please check your connection and try again</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -137,6 +176,7 @@ const ComplianceOverview = () => {
         <CardContent>
           <div className="flex items-center justify-center p-8">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+            <span className="ml-2 text-gray-600">Loading compliance data...</span>
           </div>
         </CardContent>
       </Card>
@@ -173,7 +213,7 @@ const ComplianceOverview = () => {
               <div className="flex items-center gap-2">
                 {getStatusIcon(item.status)}
                 <span className="text-sm">{item.name}</span>
-                {item.count !== undefined && (
+                {item.count !== undefined && item.total !== undefined && (
                   <span className="text-xs text-gray-500">({item.count}/{item.total})</span>
                 )}
               </div>
@@ -182,7 +222,7 @@ const ComplianceOverview = () => {
           ))}
         </div>
 
-        {!submissions || submissions.length === 0 && (
+        {(!submissions || submissions.length === 0) && (
           <div className="text-center py-4 text-gray-500">
             <p className="text-sm">No compliance data available.</p>
             <p className="text-xs mt-1">Data will appear here once forms are submitted.</p>
