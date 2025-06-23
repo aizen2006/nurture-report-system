@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,89 +10,57 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Save, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import UserDetailsSection from '@/components/shared/UserDetailsSection';
 
-interface UserDetails {
-  fullName: string;
-  nurseryName: string;
-  email: string;
-}
-
-interface ManagerFormProps {
-  userDetails: UserDetails;
-}
-
-const ManagerForm = ({ userDetails }: ManagerFormProps) => {
+const ManagerForm = () => {
   const { toast } = useToast();
+  const [userDetails, setUserDetails] = useState({
+    fullName: '',
+    nurseryName: '',
+    email: ''
+  });
   const [formData, setFormData] = useState({});
-  const [currentSection, setCurrentSection] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const sections = [
-    {
-      title: "Compliance & Operations",
-      icon: "📋",
-      questions: [
-        { id: "statutory_requirements", text: "Have all statutory requirements been met this week?", type: "radio" },
-        { id: "incidents_complaints", text: "Were there any incidents, complaints, or concerns raised?", type: "radio" },
-        { id: "safeguarding_policies", text: "Are all safeguarding policies being followed?", type: "radio" },
-        { id: "checks_logged", text: "Have all checks (first aid, fire drills, maintenance) been logged?", type: "radio" }
-      ]
-    },
-    {
-      title: "Health & Safety",
-      icon: "🏥",
-      questions: [
-        { id: "health_safety_issues", text: "Were there any health & safety issues this week?", type: "radio" },
-        { id: "hygiene_measures", text: "Were hygiene and infection control measures followed?", type: "radio" },
-        { id: "environmental_hazards", text: "Any environmental hazards or repairs needed?", type: "textarea" }
-      ]
-    },
-    {
-      title: "Safeguarding",
-      icon: "🛡️",
-      questions: [
-        { id: "safeguarding_concerns", text: "Were there any safeguarding concerns raised?", type: "radio" },
-        { id: "concerns_reported", text: "Have all concerns been reported properly?", type: "radio" },
-        { id: "staff_confidence", text: "Do staff feel confident in safeguarding procedures?", type: "radio" }
-      ]
-    },
-    {
-      title: "Staff Updates",
-      icon: "👥",
-      questions: [
-        { id: "staff_issues", text: "Any staff absences, lateness, or performance issues?", type: "textarea" },
-        { id: "staffing_changes", text: "Any staffing changes?", type: "textarea" },
-        { id: "training_needs", text: "Any training or support needs identified?", type: "textarea" }
-      ]
-    },
-    {
-      title: "Children's Development",
-      icon: "🌱",
-      questions: [
-        { id: "development_plans", text: "Are learning and development plans progressing?", type: "radio" },
-        { id: "development_concerns", text: "Any concerns about individual children's development?", type: "textarea" },
-        { id: "parent_communications", text: "Are parent communications up to date?", type: "radio" }
-      ]
-    }
+  const allQuestions = [
+    { id: "statutory_requirements", text: "Have all statutory requirements been met this week?", type: "radio" },
+    { id: "incidents_complaints", text: "Were there any incidents, complaints, or concerns raised?", type: "radio" },
+    { id: "safeguarding_policies", text: "Are all safeguarding policies being followed?", type: "radio" },
+    { id: "checks_logged", text: "Have all checks (first aid, fire drills, maintenance) been logged?", type: "radio" },
+    { id: "health_safety_issues", text: "Were there any health & safety issues this week?", type: "radio" },
+    { id: "hygiene_measures", text: "Were hygiene and infection control measures followed?", type: "radio" },
+    { id: "environmental_hazards", text: "Any environmental hazards or repairs needed?", type: "textarea" },
+    { id: "safeguarding_concerns", text: "Were there any safeguarding concerns raised?", type: "radio" },
+    { id: "concerns_reported", text: "Have all concerns been reported properly?", type: "radio" },
+    { id: "staff_confidence", text: "Do staff feel confident in safeguarding procedures?", type: "radio" },
+    { id: "staff_issues", text: "Any staff absences, lateness, or performance issues?", type: "textarea" },
+    { id: "staffing_changes", text: "Any staffing changes?", type: "textarea" },
+    { id: "training_needs", text: "Any training or support needs identified?", type: "textarea" },
+    { id: "development_plans", text: "Are learning and development plans progressing?", type: "radio" },
+    { id: "development_concerns", text: "Any concerns about individual children's development?", type: "textarea" },
+    { id: "parent_communications", text: "Are parent communications up to date?", type: "radio" }
   ];
 
-  const handleInputChange = (questionId, value) => {
+  const handleUserDetailsChange = (field: string, value: string) => {
+    setUserDetails(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleInputChange = (questionId: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [questionId]: value
     }));
   };
 
-  const getTotalQuestions = () => {
-    return sections.reduce((total, section) => total + section.questions.length, 0);
-  };
+  const getTotalQuestions = () => allQuestions.length;
+  const getAnsweredQuestions = () => Object.keys(formData).length;
+  const getProgressPercentage = () => Math.round((getAnsweredQuestions() / getTotalQuestions()) * 100);
 
-  const getAnsweredQuestions = () => {
-    return Object.keys(formData).length;
-  };
-
-  const getProgressPercentage = () => {
-    return Math.round((getAnsweredQuestions() / getTotalQuestions()) * 100);
+  const isFormValid = () => {
+    return userDetails.fullName && userDetails.nurseryName && userDetails.email;
   };
 
   const handleSaveDraft = () => {
@@ -107,6 +76,15 @@ const ManagerForm = ({ userDetails }: ManagerFormProps) => {
   };
 
   const handleSubmit = async () => {
+    if (!isFormValid()) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required personal details.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase
@@ -118,7 +96,6 @@ const ManagerForm = ({ userDetails }: ManagerFormProps) => {
           submission_data: {
             nursery_name: userDetails.nurseryName,
             responses: formData,
-            completed_sections: sections.length,
             total_questions: getTotalQuestions(),
             answered_questions: getAnsweredQuestions()
           }
@@ -131,8 +108,8 @@ const ManagerForm = ({ userDetails }: ManagerFormProps) => {
         description: "Manager compliance report has been submitted to the database.",
       });
 
-      // Clear form data
       setFormData({});
+      setUserDetails({ fullName: '', nurseryName: '', email: '' });
       localStorage.removeItem('manager_form_draft');
 
     } catch (error) {
@@ -147,7 +124,7 @@ const ManagerForm = ({ userDetails }: ManagerFormProps) => {
     }
   };
 
-  const renderQuestion = (question) => {
+  const renderQuestion = (question: any) => {
     if (question.type === 'radio') {
       return (
         <RadioGroup
@@ -180,13 +157,18 @@ const ManagerForm = ({ userDetails }: ManagerFormProps) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Manager Daily Report</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Manager Daily Checklist</h2>
           <p className="text-gray-600">Complete your daily compliance and development checklist</p>
         </div>
         <Badge variant="outline" className="px-3 py-1">
           {getAnsweredQuestions()}/{getTotalQuestions()} completed
         </Badge>
       </div>
+
+      <UserDetailsSection 
+        userDetails={userDetails}
+        onUserDetailsChange={handleUserDetailsChange}
+      />
 
       <Card>
         <CardHeader>
@@ -198,47 +180,29 @@ const ManagerForm = ({ userDetails }: ManagerFormProps) => {
         </CardHeader>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Section Navigation */}
-        <div className="space-y-2">
-          {sections.map((section, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentSection(index)}
-              className={`w-full text-left p-3 rounded-lg transition-colors ${
-                currentSection === index 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-white hover:bg-gray-50 border'
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <span className="text-lg">{section.icon}</span>
-                <span className="text-sm font-medium">{section.title}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* Current Section */}
-        <div className="lg:col-span-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <span className="text-2xl">{sections[currentSection].icon}</span>
-                <span>{sections[currentSection].title}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {sections[currentSection].questions.map((question, index) => (
-                <div key={question.id} className="space-y-3">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <CheckCircle className="w-6 h-6 text-blue-500" />
+            <span>Daily Checklist</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {allQuestions.map((question, index) => (
+            <div key={question.id} className="space-y-3 p-4 border rounded-lg">
+              <div className="flex items-start space-x-3">
+                <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2 py-1 rounded-full min-w-[2rem] text-center">
+                  {index + 1}
+                </span>
+                <div className="flex-1 space-y-3">
                   <Label className="text-base font-medium">{question.text}</Label>
                   {renderQuestion(question)}
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <div className="flex justify-between">
         <Button variant="outline" onClick={handleSaveDraft}>
@@ -247,7 +211,7 @@ const ManagerForm = ({ userDetails }: ManagerFormProps) => {
         </Button>
         <Button 
           onClick={handleSubmit} 
-          disabled={isSubmitting}
+          disabled={isSubmitting || !isFormValid()}
           className="bg-blue-600 hover:bg-blue-700"
         >
           <Send className="w-4 h-4 mr-2" />
