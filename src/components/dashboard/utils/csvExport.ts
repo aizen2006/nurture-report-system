@@ -6,7 +6,7 @@ import { formatSubmissionDataAsText, generateAISuggestionsText } from './textFor
 export const createCSVFromData = (data: any[]) => {
   if (!data || data.length === 0) return '';
   
-  const headers = ['ID', 'Timestamp', 'Full Name', 'Email', 'Role', 'Nursery', 'Total Questions', 'Answered Questions', 'Compliance Rate', 'Response Summary'];
+  const headers = ['ID', 'Timestamp', 'Full Name', 'Email', 'Role', 'Nursery', 'Total Questions', 'Answered Questions', 'Compliance Rate', 'Complete Form Data'];
   const csvRows = [
     headers.join(','),
     ...data.map(row => [
@@ -19,7 +19,7 @@ export const createCSVFromData = (data: any[]) => {
       row.total_questions || 0,
       row.answered_questions || 0,
       `${row.compliance_rate || 0}%`,
-      `"${row.response_summary || ''}"`
+      `"${(row.complete_form_data || '').replace(/"/g, '""')}"`
     ].join(','))
   ];
   

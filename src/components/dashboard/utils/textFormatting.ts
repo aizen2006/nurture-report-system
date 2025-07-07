@@ -1,53 +1,57 @@
 
 import { parseSubmissionData } from './dataProcessing';
 
-// Convert form submission data to text format for CSV export
+// Convert complete JSON submission data to readable text format
+export const formatCompleteSubmissionData = (submissionData: any) => {
+  if (!submissionData || typeof submissionData !== 'object') {
+    return 'No data available';
+  }
+
+  const formatValue = (value: any, depth = 0): string => {
+    const indent = '  '.repeat(depth);
+    
+    if (value === null || value === undefined) {
+      return 'N/A';
+    }
+    
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    
+    if (typeof value === 'string' || typeof value === 'number') {
+      return String(value);
+    }
+    
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '[]';
+      return '[\n' + value.map(item => indent + '  - ' + formatValue(item, depth + 1)).join('\n') + '\n' + indent + ']';
+    }
+    
+    if (typeof value === 'object') {
+      const entries = Object.entries(value);
+      if (entries.length === 0) return '{}';
+      return '{\n' + entries.map(([key, val]) => 
+        indent + '  ' + key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) + ': ' + formatValue(val, depth + 1)
+      ).join('\n') + '\n' + indent + '}';
+    }
+    
+    return String(value);
+  };
+
+  const formattedEntries = Object.entries(submissionData)
+    .map(([key, value]) => {
+      const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      return `${formattedKey}: ${formatValue(value)}`;
+    });
+
+  return formattedEntries.join('\n\n');
+};
+
+// Convert form submission data to text format for CSV export (LEGACY - kept for compatibility)
 export const formatSubmissionDataAsText = (submissions: any[]) => {
   return submissions.map((sub, index) => {
     const parsedData = parseSubmissionData(sub.submission_data);
-    const responses = parsedData.responses || {};
     
-    // Create a readable text summary
-    const complianceItems = [];
-    if (responses.fire_safety_check === 'yes') complianceItems.push('Fire Safety: ✓');
-    else if (responses.fire_safety_check === 'no') complianceItems.push('Fire Safety: ✗');
-    
-    if (responses.first_aid_certified === 'yes') complianceItems.push('First Aid: ✓');
-    else if (responses.first_aid_certified === 'no') complianceItems.push('First Aid: ✗');
-    
-    if (responses.staff_training_complete === 'yes') complianceItems.push('Training: ✓');
-    else if (responses.staff_training_complete === 'no') complianceItems.push('Training: ✗');
-    
-    if (responses.safeguarding_concerns === 'no') complianceItems.push('Safeguarding: ✓');
-    else if (responses.safeguarding_concerns === 'yes') complianceItems.push('Safeguarding: CONCERN');
-
-    // Room ratios
-    const roomInfo = [];
-    Object.keys(responses).forEach(key => {
-      if (key.includes('_children') && !key.includes('ratio')) {
-        const roomMatch = key.match(/room_(\d+)_children/);
-        if (roomMatch) {
-          const roomNum = roomMatch[1];
-          const children = responses[key];
-          const staff = responses[`room_${roomNum}_staff`];
-          const status = responses[`room_${roomNum}_ratio_status`];
-          if (children && staff) {
-            roomInfo.push(`Room ${roomNum}: ${children} children, ${staff} staff (${status || 'Unknown'})`);
-          }
-        }
-      }
-    });
-
-    const textSummary = [
-      `Branch: ${parsedData.nursery_name || 'Unknown'}`,
-      `Compliance: ${complianceItems.join(', ')}`,
-      `Rooms: ${roomInfo.join(' | ')}`,
-      `Staff Absences: ${responses.staff_absences || 'None'}`,
-      `Attendance Trend: ${responses.attendance_trend || 'Unknown'}`,
-      `Weekly Attendance: ${responses.weekly_attendance || 'N/A'}`,
-      `Monthly Enrollment: ${responses.monthly_enrollment || 'N/A'}`
-    ].join(' | ');
-
     return {
       id: index + 1,
       timestamp: sub.submitted_at,
@@ -60,7 +64,7 @@ export const formatSubmissionDataAsText = (submissions: any[]) => {
       compliance_rate: parsedData.total_questions > 0 
         ? Math.round((parsedData.answered_questions / parsedData.total_questions) * 100) 
         : 0,
-      response_summary: textSummary
+      complete_form_data: formatCompleteSubmissionData(sub.submission_data)
     };
   });
 };
