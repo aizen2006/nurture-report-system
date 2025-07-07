@@ -1,15 +1,17 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronRight, Info } from 'lucide-react';
+import { ChevronRight, Info, ChevronLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { format, addWeeks, startOfWeek } from 'date-fns';
 
 const RoomPlanner = () => {
   const [selectedSite, setSelectedSite] = useState('all');
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const { data: roomPlannerData, isLoading } = useQuery({
     queryKey: ['room_planner'],
@@ -32,13 +34,24 @@ const RoomPlanner = () => {
     }))
   ];
 
-  const weekDays = [
-    { day: 'Mon', date: '29 Jul' },
-    { day: 'Tue', date: '30 Jul' },
-    { day: 'Wed', date: '31 Jul' },
-    { day: 'Thu', date: '1 Aug' },
-    { day: 'Fri', date: '2 Aug' }
-  ];
+  const weekDays = useMemo(() => {
+    const currentWeek = addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), weekOffset);
+    return Array.from({ length: 5 }, (_, i) => {
+      const date = addWeeks(currentWeek, 0);
+      date.setDate(date.getDate() + i);
+      return {
+        day: format(date, 'EEE'),
+        date: format(date, 'd MMM')
+      };
+    });
+  }, [weekOffset]);
+
+  const currentWeekRange = useMemo(() => {
+    const startDate = addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), weekOffset);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 4);
+    return `${format(startDate, 'd MMM')} - ${format(endDate, 'd MMM yyyy')}`;
+  }, [weekOffset]);
 
   const getFilteredRooms = () => {
     if (!roomPlannerData) return [];
@@ -143,18 +156,41 @@ const RoomPlanner = () => {
               </DialogContent>
             </Dialog>
           </div>
-          <Select value={selectedSite} onValueChange={setSelectedSite}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="Select Site" />
-            </SelectTrigger>
-            <SelectContent>
-              {sites.map((site) => (
-                <SelectItem key={site.id} value={site.id}>
-                  {site.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setWeekOffset(weekOffset - 1)}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="text-sm font-medium min-w-[140px] text-center">
+                {currentWeekRange}
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setWeekOffset(weekOffset + 1)}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <Select value={selectedSite} onValueChange={setSelectedSite}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Select Site" />
+              </SelectTrigger>
+              <SelectContent>
+                {sites.map((site) => (
+                  <SelectItem key={site.id} value={site.id}>
+                    {site.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
