@@ -78,7 +78,7 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       // Send admin notification
       const adminEmailResponse = await resend.emails.send({
-        from: "Childcare System <soubhik1971@gmail.com>",
+        from: "Childcare System <onboarding@resend.dev>",
         to: [adminEmail],
         subject: `New ${notificationData.role} Checklist Submission`,
         html: adminEmailHtml
@@ -88,7 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Send submitter confirmation
       const submitterEmailResponse = await resend.emails.send({
-        from: "Childcare System <soubhik1971@gmail.com>",
+        from: "Childcare System <onboarding@resend.dev>",
         to: [notificationData.submitterEmail],
         subject: "Checklist Submission Confirmation",
         html: submitterEmailHtml
