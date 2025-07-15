@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { createCSVFromData, downloadCSV, formatSubmissionsForCSV } from '../utils/csvExport';
+import { createCSVFromSubmissions, downloadCSV } from '../utils/csvExport';
 
 export const useIndividualDownloads = () => {
   const { toast } = useToast();
@@ -21,8 +21,7 @@ export const useIndividualDownloads = () => {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const formattedData = formatSubmissionsForCSV(data);
-        const csvContent = createCSVFromData(formattedData);
+        const csvContent = createCSVFromSubmissions(data);
         const timestamp = new Date().toISOString().split('T')[0];
         downloadCSV(csvContent, `form-submissions-${timestamp}.csv`);
         
