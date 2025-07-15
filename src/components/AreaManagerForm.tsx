@@ -114,9 +114,27 @@ const AreaManagerForm = () => {
 
       await submitToGoogleSheets(submissionData);
 
+      // Send email notifications
+      try {
+        await supabase.functions.invoke('send-admin-notification', {
+          body: {
+            submitterName: userDetails.fullName,
+            submitterEmail: userDetails.email,
+            role: 'Area Manager',
+            nurseryName: userDetails.nurseryName,
+            submissionTime: new Date().toLocaleString(),
+            formData: formData
+          }
+        });
+        console.log('Email notifications sent successfully');
+      } catch (emailError) {
+        console.error('Email notification failed:', emailError);
+        // Don't fail the submission if email fails
+      }
+
       toast({
         title: "Form Submitted Successfully!",
-        description: "Area Manager daily report has been submitted to the database and Google Sheets.",
+        description: "Area Manager daily report has been submitted and email notifications sent.",
       });
 
       setFormData({});
