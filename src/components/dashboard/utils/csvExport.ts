@@ -7,7 +7,7 @@ const extractAllResponseFields = (submissions: any[]): string[] => {
   const fieldsSet = new Set<string>();
   
   submissions.forEach(submission => {
-    const parsedData = parseSubmissionData(submission);
+    const parsedData = parseSubmissionData(submission.submission_data);
     if (parsedData.responses) {
       Object.keys(parsedData.responses).forEach(field => fieldsSet.add(field));
     }
@@ -39,7 +39,7 @@ export const createCSVFromSubmissions = (submissions: any[]) => {
   const csvRows = [
     headers.join(','),
     ...submissions.map((submission, index) => {
-      const parsedData = parseSubmissionData(submission);
+      const parsedData = parseSubmissionData(submission.submission_data);
       
       // Base row data
       const baseRow = [
