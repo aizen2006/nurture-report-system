@@ -13,6 +13,7 @@ import DeputyManagerForm from '@/components/DeputyManagerForm';
 import RoomLeaderForm from '@/components/RoomLeaderForm';
 import AreaManagerForm from '@/components/AreaManagerForm';
 import Dashboard from '@/components/Dashboard';
+import { EmailTest } from '@/components/EmailTest';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -34,6 +35,10 @@ const Index = () => {
           <p className="text-lg text-gray-600">
             Comprehensive monitoring and compliance tracking system
           </p>
+        </div>
+
+        <div className="mb-6 flex justify-center">
+          <EmailTest />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
