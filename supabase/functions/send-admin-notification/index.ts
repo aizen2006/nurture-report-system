@@ -27,7 +27,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const notificationData: NotificationData = await req.json();
     
-    const adminEmail = "abhik@arkgroup.co.uk";
+    const adminEmail = "soubhik1971@gmail.com";
     
     // Create form data summary for email
     const formDataSummary = notificationData.formData 

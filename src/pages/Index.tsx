@@ -13,7 +13,7 @@ import DeputyManagerForm from '@/components/DeputyManagerForm';
 import RoomLeaderForm from '@/components/RoomLeaderForm';
 import AreaManagerForm from '@/components/AreaManagerForm';
 import Dashboard from '@/components/Dashboard';
-import { EmailTest } from '@/components/EmailTest';
+
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -37,9 +37,6 @@ const Index = () => {
           </p>
         </div>
 
-        <div className="mb-6 flex justify-center">
-          <EmailTest />
-        </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-5 mb-8">
